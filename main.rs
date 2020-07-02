@@ -13,5 +13,5 @@ fn main() {
   // println!("{:?}", &ast);
   println!("{}", &ast);
 
-  println!("{}", eval(&mut env, ast));
+  println!("{}", eval(&mut env, &ast));
 }

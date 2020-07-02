@@ -1,24 +1,22 @@
 
-use crate::model::{Atom, Expression, ConsCell, Number, NIL};
+use crate::model::{ConsCell, Value};
 use std::rc::Rc;
 
 #[derive(Debug,Clone)]
 enum ParseTree {
-  Atom(Atom),
+  Atom(Value),
   List(Vec<ParseTree>),
 }
 
 impl ParseTree {
 
-  pub fn into_expression(&self) -> Rc<Expression> {
+  pub fn into_expression(&self) -> Value {
     match self {
-      ParseTree::Atom(atom) => Rc::new(Expression::Atom(atom.clone())),
+      ParseTree::Atom(atom) => atom.clone(),
       ParseTree::List(vec) => {
         let mut cons: Option<ConsCell> = None;
 
-        for subtree in vec.iter().rev() {
-          // println!("{:?}", cons);
-          
+        for subtree in vec.iter().rev() {          
           cons = Some(ConsCell {
             car: subtree.into_expression(),
             cdr: cons.map(|cons_cell| Rc::new(cons_cell)),
@@ -26,8 +24,8 @@ impl ParseTree {
         }
 
         match cons {
-          Some(cons) => Rc::new(Expression::List(Rc::new(cons))),
-          None => Rc::new(NIL)
+          Some(cons) => Value::List(Rc::new(cons)),
+          None => Value::Nil
         }
       }
     }
@@ -43,7 +41,7 @@ fn tokenize(code: &str) -> Vec<String> {
   return replaced.split_whitespace().map(|s| String::from(s)).collect();
 }
 
-fn read(tokens: &Vec<String>) -> Rc<Expression> {
+fn read(tokens: &Vec<String>) -> Value {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List(vec![]) ];
 
   for token in tokens {
@@ -71,7 +69,7 @@ fn read(tokens: &Vec<String>) -> Rc<Expression> {
 
   let parse_tree = match stack.into_iter().last().unwrap() {
     ParseTree::List(vec) => vec[0].clone(),
-    _ => ParseTree::Atom(Atom::Nil)
+    _ => ParseTree::Atom(Value::Nil)
   };
 
   // println!("{:?}", &parse_tree);
@@ -80,13 +78,36 @@ fn read(tokens: &Vec<String>) -> Rc<Expression> {
 }
 
 
-fn read_atom(token: &str) -> Atom {
-  token.parse::<i32>().map(|i| Atom::Number(Number::Int(i))).unwrap_or(
-  token.parse::<f32>().map(|f| Atom::Number(Number::Float(f))).unwrap_or(
-                               Atom::Symbol(String::from(token))))
+fn read_atom(token: &str) -> Value {
+  let token_uppercase = token.to_uppercase();
+
+  if token_uppercase == "T" {
+    return Value::True;
+  }
+
+  if token_uppercase == "NIL" {
+    return Value::Nil;
+  }
+
+  let as_int = token.parse::<i32>();
+  if as_int.is_ok() {
+    return Value::Int(as_int.unwrap());
+  }
+
+  let as_float = token.parse::<f32>();
+  if as_float.is_ok() {
+    return Value::Float(as_float.unwrap());
+  }
+
+  if token.chars().nth(0).map_or(false, |c| c == '"') 
+  && token.chars().nth_back(0).map_or(false, |c| c == '"') {
+    return Value::String(String::from(&token[1..token.chars().count() - 1]))
+  }
+
+  return Value::Symbol(String::from(token));
 }
 
-pub fn parse(code: &str) -> Rc<Expression> {
+pub fn parse(code: &str) -> Value {
   read(&tokenize(code))
 }
 
