@@ -1,6 +1,6 @@
 
-use crate::model::{ConsCell, Value};
-use std::rc::Rc;
+use crate::model::{Value};
+use crate::utils::vec_to_cons;
 
 #[derive(Debug,Clone)]
 enum ParseTree {
@@ -13,21 +13,7 @@ impl ParseTree {
   pub fn into_expression(&self) -> Value {
     match self {
       ParseTree::Atom(atom) => atom.clone(),
-      ParseTree::List(vec) => {
-        let mut cons: Option<ConsCell> = None;
-
-        for subtree in vec.iter().rev() {          
-          cons = Some(ConsCell {
-            car: subtree.into_expression(),
-            cdr: cons.map(|cons_cell| Rc::new(cons_cell)),
-          });
-        }
-
-        match cons {
-          Some(cons) => Value::List(Rc::new(cons)),
-          None => Value::Nil
-        }
-      }
+      ParseTree::List(vec) => vec_to_cons(&vec.iter().map(|parse_tree| parse_tree.into_expression()).collect())
     }
   }
 
@@ -71,8 +57,6 @@ fn read(tokens: &Vec<String>) -> Value {
     ParseTree::List(vec) => vec[0].clone(),
     _ => ParseTree::Atom(Value::Nil)
   };
-
-  // println!("{:?}", &parse_tree);
 
   return parse_tree.into_expression();
 }
