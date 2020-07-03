@@ -6,6 +6,16 @@ pub fn standard_env() -> Env {
   let mut entries = HashMap::new();
 
   entries.insert(
+    String::from("print"),
+    Value::NativeFunc(
+      |_env, args| {
+        let expr = args.get(0).unwrap();
+
+        println!("{}", &expr);
+        return Ok(expr.clone());
+      }));
+
+  entries.insert(
     String::from("car"),
     Value::NativeFunc(
       |_env, args| {
@@ -76,9 +86,36 @@ pub fn standard_env() -> Env {
           return Ok(Value::Float(a.unwrap() + b.unwrap()));
         }
 
+        let a = args.get(0).and_then(|a| a.as_string());
+        let b = args.get(1).and_then(|a| a.as_string());
+
+        if a.is_some() && b.is_some() {
+          return Ok(Value::String(a.unwrap().to_owned() + b.unwrap()));
+        }
+
+        return Err(RuntimeError { msg: String::from("Args must be numbers or strings") });
+      }));
+    
+  entries.insert(
+    String::from("-"), 
+    Value::NativeFunc(
+      |_env, args| {
+        let a = args.get(0).and_then(|a| a.as_int());
+        let b = args.get(1).and_then(|a| a.as_int());
+
+        if a.is_some() && b.is_some() {
+          return Ok(Value::Int(a.unwrap() - b.unwrap()));
+        }
+
+        let a = args.get(0).and_then(|a| a.as_float());
+        let b = args.get(1).and_then(|a| a.as_float());
+
+        if a.is_some() && b.is_some() {
+          return Ok(Value::Float(a.unwrap() - b.unwrap()));
+        }
+
         return Err(RuntimeError { msg: String::from("Args must be numbers") });
       }));
-
     
   entries.insert(
     String::from("*"), 
@@ -123,6 +160,28 @@ pub fn standard_env() -> Env {
         return Err(RuntimeError { msg: String::from("Args must be numbers") });
       }));
 
+
+  entries.insert(
+    String::from("=="), 
+    Value::NativeFunc(
+      |_env, args| {
+        Ok(Value::from_truth(args.get(0) == args.get(1)))
+      }));
+
+  entries.insert(
+    String::from("!="), 
+    Value::NativeFunc(
+      |_env, args| {
+        Ok(Value::from_truth(args.get(0) != args.get(1)))
+      }));
+
+  // entries.insert(
+  //   String::from("<"), 
+  //   Value::NativeFunc(
+  //     |_env, args| {
+  //       Ok(Value::from_truth(args.get(0) < args.get(1)))
+  //     }));
+
   Env {
     parent: None,
     entries
@@ -130,6 +189,9 @@ pub fn standard_env() -> Env {
 }
 
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
+  // println!("eval {}", &expression);
+  // println!("{}", &env.borrow());
+
   match expression {
 
     // look up symbol
@@ -143,10 +205,26 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
       match &list.car {
 
         // special forms
+        Value::Symbol(symbol) if symbol == "define" => {
+          // println!("{}", &list);
+          let symbol = list.cdr.clone().map(|cdr| cdr.car.as_symbol()).unwrap().unwrap();
+          let value_expr = list.cdr.clone().unwrap().cdr.clone().unwrap().car.clone();
+          let value = eval(env.clone(), &value_expr);
+
+          // println!("defined {}", &symbol);
+          env.borrow_mut().entries.insert(symbol, value.clone());
+          // println!("{}", &env.borrow());
+
+          return value;
+        },
+
         Value::Symbol(symbol) if symbol == "lambda" => {
+          // println!("{}", &list);
           let argnames = Rc::new(list.cdr.clone().map(|cdr| cdr.car.clone()).unwrap());
+          // println!("{}", &argnames);
 
           let body = Rc::new(list.cdr.clone().map(|cdr| cdr.cdr.clone().map(|body| Value::List(body))).unwrap().unwrap());
+          // println!("{}", &body);
 
           Value::Lambda(Lambda {
             env: env.clone(),
@@ -155,10 +233,38 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
           })
         },
 
+        Value::Symbol(symbol) if symbol == "begin" => {
+          let body = list.cdr.clone().unwrap();
+
+          let mut result = None;
+          for line in body.into_iter() {
+            result = Some(eval(env.clone(), &line));
+          }
+
+          return result.unwrap_or(Value::Nil);
+        },
+
+        Value::Symbol(symbol) if symbol == "cond" => {
+          let clauses = list.cdr.as_ref().unwrap();
+
+          for clause in clauses.into_iter().map(|clause| clause.as_list().unwrap()) {
+            let condition = &clause.car;
+            let result = &clause.cdr.as_ref().unwrap().car;
+
+            if eval(env.clone(), condition).is_truthy() {
+              return eval(env.clone(), result);
+            }
+          }
+
+          return Value::Nil;
+        },
+
+
+
         // function call
         _ => {
           let func = eval(env.clone(), &list.car);
-
+          // println!("{}", &list);
           let args = list.as_ref().cdr.as_ref().unwrap().into_iter()
             .map(|car| eval(env.clone(), car));
 

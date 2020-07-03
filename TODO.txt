@@ -1,0 +1,6 @@
+- Come up with generalized error reporting for function and special-form signatures
+- Handle reference cycles
+- Macro for FFI
+- More closely adhere to either scheme or common-lisp syntax
+- Find more concise/efficient way to represent native functions/polymorphism
+- Use Nil instead of Options?

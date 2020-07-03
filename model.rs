@@ -15,6 +15,65 @@ pub enum Value {
   Lambda(Lambda),
 }
 
+impl Value {
+
+  pub fn from_truth(b: bool) -> Value {
+    match b {
+      true => Value::True,
+      false => Value::Nil,
+    }
+  }
+
+  pub fn is_truthy(&self) -> bool {
+    match self {
+      Value::Nil => false,
+      _ => true,
+    }
+  }
+
+  pub fn as_int(&self) -> Option<i32> {
+    match self {
+      Value::Int(n) => Some(*n),
+      _ => None
+    }
+  }
+
+  pub fn as_float(&self) -> Option<f32> {
+    match self {
+      Value::Float(n) => Some(*n),
+      _ => None
+    }
+  }
+
+  pub fn as_string(&self) -> Option<&str> {
+    match self {
+      Value::String(n) => Some(n),
+      _ => None
+    }
+  }
+
+  pub fn as_list(&self) -> Option<Rc<ConsCell>> {
+    match self {
+      Value::List(list) => Some(list.clone()),
+      _ => None,
+    }
+  }
+
+  pub fn as_lambda(&self) -> Option<Lambda> {
+    match self {
+      Value::Lambda(lambda) => Some(lambda.clone()),
+      _ => None
+    }
+  }
+
+  pub fn as_symbol(&self) -> Option<String> {
+    match self {
+      Value::Symbol(name) => Some(name.clone()),
+      _ => None
+    }
+  }
+}
+
 impl Display for Value {
   fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
     match self {
@@ -50,8 +109,24 @@ impl Debug for Value {
   }
 }
 
+impl PartialEq for Value {
+  fn eq(&self, other: &Self) -> bool {
+    match self {
+      Value::NativeFunc(_) => false,
+      Value::Nil => *other == Value::Nil,
+      Value::True => *other == Value::True,
+      Value::Lambda(n) =>     match other { Value::Lambda(o) =>     n == o, _ => false },
+      Value::String(n) =>     match other { Value::String(o) =>     n == o, _ => false },
+      Value::List(n) => match other { Value::List(o) => n == o, _ => false },
+      Value::Int(n) =>           match other { Value::Int(o) =>           n == o, _ => false },
+      Value::Float(n) =>         match other { Value::Float(o) =>         n == o, _ => false },
+      Value::Symbol(n) =>     match other { Value::Symbol(o) =>     n == o, _ => false },
+    }
+  }
+}
 
-#[derive(Debug)]
+
+#[derive(Debug,PartialEq)]
 pub struct ConsCell {
   pub car: Value,
   pub cdr: Option<Rc<ConsCell>>,
@@ -104,6 +179,11 @@ pub struct Lambda {
   pub body: Rc<Value>
 }
 
+impl PartialEq for Lambda {
+  fn eq(&self, other: &Self) -> bool {
+    false // TODO
+  }
+}
 
 type NativeFunc = fn(Rc<RefCell<Env>>, &Vec<Value>) -> Result<Value, RuntimeError>;
 
@@ -112,43 +192,6 @@ pub struct RuntimeError {
   pub msg: String,
 }
 
-impl Value {
-
-  pub fn as_int(&self) -> Option<i32> {
-    match self {
-      Value::Int(n) => Some(*n),
-      _ => None
-    }
-  }
-
-  pub fn as_float(&self) -> Option<f32> {
-    match self {
-      Value::Float(n) => Some(*n),
-      _ => None
-    }
-  }
-
-  pub fn as_list(&self) -> Option<Rc<ConsCell>> {
-    match self {
-      Value::List(list) => Some(list.clone()),
-      _ => None,
-    }
-  }
-
-  pub fn as_lambda(&self) -> Option<Lambda> {
-    match self {
-      Value::Lambda(lambda) => Some(lambda.clone()),
-      _ => None
-    }
-  }
-
-  pub fn as_symbol(&self) -> Option<String> {
-    match self {
-      Value::Symbol(name) => Some(name.clone()),
-      _ => None
-    }
-  }
-}
 
 
 #[derive(Debug)]
