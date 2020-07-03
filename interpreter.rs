@@ -1,192 +1,6 @@
 
-use crate::{utils::vec_to_cons, model::{Value, Env, RuntimeError, ConsCell, Lambda}};
+use crate::{model::{Value, Env, RuntimeError, Lambda}};
 use std::{collections::HashMap, rc::Rc, cell::RefCell};
-
-pub fn standard_env() -> Env {
-  let mut entries = HashMap::new();
-
-  entries.insert(
-    String::from("print"),
-    Value::NativeFunc(
-      |_env, args| {
-        let expr = args.get(0).unwrap();
-
-        println!("{}", &expr);
-        return Ok(expr.clone());
-      }));
-
-  entries.insert(
-    String::from("car"),
-    Value::NativeFunc(
-      |_env, args| {
-        let list = args.get(0).and_then(|a| a.as_list());
-
-        return match list {
-          Some(cons_cell) => Ok(cons_cell.car.clone()),
-          None => Err(RuntimeError { msg: String::from("Arg must be list") })
-        };
-      }));
-    
-  entries.insert(
-    String::from("cdr"),
-    Value::NativeFunc(
-      |_env, args| {
-        let list = args.get(0).and_then(|a| a.as_list());
-
-        return match list {
-          Some(cons_cell) => Ok(
-            match cons_cell.cdr.as_ref() {
-              Some(cell) => Value::List(cell.clone()),
-              None => Value::Nil
-            }
-          ),
-          None => Err(RuntimeError { msg: String::from("Arg must be list") })
-        };
-      }));
-    
-  entries.insert(
-    String::from("cons"),
-    Value::NativeFunc(
-      |_env, args| {
-        let car: Option<&Value> = args.get(0);
-        let cdr: Option<Rc<ConsCell>> = args.get(1).and_then(|a| a.as_list());
-
-        return match car {
-          Some(car) => match cdr {
-            Some(cdr) => Ok(Value::List(Rc::new(ConsCell {
-              car: car.clone(),
-              cdr: Some(cdr.clone())
-            }))),
-            None => Err(RuntimeError { msg: String::from("Arg 2 must be a list") })
-          },
-          None => Err(RuntimeError { msg: String::from("Requires 2 args") })
-        };
-      }));
-    
-  entries.insert(
-    String::from("list"),
-    Value::NativeFunc(
-      |_env, args| Ok(vec_to_cons(args))));
-
-  entries.insert(
-    String::from("+"), 
-    Value::NativeFunc(
-      |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() + b.unwrap()));
-        }
-
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() + b.unwrap()));
-        }
-
-        let a = args.get(0).and_then(|a| a.as_string());
-        let b = args.get(1).and_then(|a| a.as_string());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::String(a.unwrap().to_owned() + b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers or strings") });
-      }));
-    
-  entries.insert(
-    String::from("-"), 
-    Value::NativeFunc(
-      |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() - b.unwrap()));
-        }
-
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() - b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
-      }));
-    
-  entries.insert(
-    String::from("*"), 
-    Value::NativeFunc(
-      |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() * b.unwrap()));
-        }
-
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() * b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
-      }));
-
-    
-  entries.insert(
-    String::from("/"), 
-    Value::NativeFunc(
-      |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() / b.unwrap()));
-        }
-
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() / b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
-      }));
-
-
-  entries.insert(
-    String::from("=="), 
-    Value::NativeFunc(
-      |_env, args| {
-        Ok(Value::from_truth(args.get(0) == args.get(1)))
-      }));
-
-  entries.insert(
-    String::from("!="), 
-    Value::NativeFunc(
-      |_env, args| {
-        Ok(Value::from_truth(args.get(0) != args.get(1)))
-      }));
-
-  // entries.insert(
-  //   String::from("<"), 
-  //   Value::NativeFunc(
-  //     |_env, args| {
-  //       Ok(Value::from_truth(args.get(0) < args.get(1)))
-  //     }));
-
-  Env {
-    parent: None,
-    entries
-  }
-}
 
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
   // println!("eval {}", &expression);
@@ -259,13 +73,29 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
           return Value::Nil;
         },
 
+        Value::Symbol(symbol) if symbol == "if" => {
+          let remaining = list.cdr.clone().unwrap();
+          let mut list_iter = remaining.into_iter();
+          let condition = list_iter.nth(0).unwrap();
+          let then_result = list_iter.nth(0).unwrap();
+          let else_result = list_iter.nth(0);
+
+          if eval(env.clone(), condition).is_truthy() {
+            return eval(env.clone(), then_result);
+          } else {
+            return match else_result {
+              Some(v) => eval(env.clone(), v),
+              None => Value::Nil
+            };
+          }
+        },
 
 
         // function call
         _ => {
           let func = eval(env.clone(), &list.car);
           // println!("{}", &list);
-          let args = list.as_ref().cdr.as_ref().unwrap().into_iter()
+          let args = list.into_iter().skip(1)
             .map(|car| eval(env.clone(), car));
 
           let result = match func {

@@ -23,6 +23,8 @@ impl ParseTree {
 fn tokenize(code: &str) -> Vec<String> {
   let replaced = code.replace("(", " ( ");
   let replaced = replaced.replace(")", " ) ");
+  let replaced = replaced.replace(";", " ; ");
+  let replaced = replaced.replace("\n", " <NEWLINE> "); // HACK
 
   return replaced.split_whitespace().map(|s| String::from(s)).collect();
 }
@@ -30,8 +32,29 @@ fn tokenize(code: &str) -> Vec<String> {
 fn read(tokens: &Vec<String>) -> Value {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List(vec![]) ];
 
+  // HACK
+  let mut one_semicolon = false;
+  let mut two_semicolons = false;
+
   for token in tokens {
-    if *token == "(" {
+    if one_semicolon {
+      if two_semicolons {
+        if *token == "<NEWLINE>" {
+          // done with comment
+          one_semicolon = false;
+          two_semicolons = false;
+        } else {
+          // do nothing
+        }
+      } else if *token == ";" {
+        two_semicolons = true;
+      } else {
+        one_semicolon = false;
+        two_semicolons = false;
+      }
+    } else if *token == "<NEWLINE>" {
+      // do nothing
+    } else if *token == "(" {
       stack.push(ParseTree::List(vec![]));
     } else if *token == ")" {
       if stack.len() == 0 {
@@ -45,6 +68,8 @@ fn read(tokens: &Vec<String>) -> Value {
           _ => ()
         };
       }
+    } else if *token == ";" {
+      one_semicolon = true;
     } else {  // atom
       match stack.last_mut().unwrap() {
         ParseTree::List(vec) => vec.push(ParseTree::Atom(read_atom(token))),

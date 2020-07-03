@@ -3,4 +3,16 @@
 - Macro for FFI
 - More closely adhere to either scheme or common-lisp syntax
 - Find more concise/efficient way to represent native functions/polymorphism
+- Tests
+- Better parsing strategy
+- Macros
+- Tail recursion
 - Use Nil instead of Options?
+- Just use cons for native function arguments?
+- Optional arguments
+- Continue adding basic functions/forms:
+  - defun
+  - ordered comparison
+  - if/else
+  - loops
+- expose read/eval to lisp code

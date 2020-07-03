@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::{fmt::{Debug, Display}, collections::HashMap};
-use std::{cell::RefCell, borrow::Borrow};
+use std::{cell::RefCell, borrow::Borrow, cmp::Ordering};
 
 #[derive(Clone)]
 pub enum Value {
@@ -126,6 +126,43 @@ impl PartialEq for Value {
 }
 
 
+impl PartialOrd for Value {
+  fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
+    match self {
+      Value::Nil => {
+        if other.is_truthy() {
+          return Some(Ordering::Less);
+        } else {
+          return Some(Ordering::Equal);
+        }
+      },
+      Value::True => {
+        if other.is_truthy() {
+          return Some(Ordering::Equal);
+        } else {
+          return Some(Ordering::Greater);
+        }
+      },
+      Value::String(n) => if let Value::String(s) = other { n.partial_cmp(s) } else { None },
+      Value::Symbol(n) => if let Value::Symbol(s) = other { n.partial_cmp(s) } else { None },
+      Value::Int(n) => match other {
+        Value::Int(o) => n.partial_cmp(o),
+        Value::Float(o) => n.partial_cmp(&(o.round() as i32)),
+        _ => None
+      },
+      Value::Float(n) => match other {
+        Value::Int(o) => n.partial_cmp(&(*o as f32)),
+        Value::Float(o) => n.partial_cmp(o),
+        _ => None
+      },
+      Value::NativeFunc(_) => None,
+      Value::Lambda(_) => None,
+      Value::List(_) => None,
+    }
+  }
+}
+
+
 #[derive(Debug,PartialEq)]
 pub struct ConsCell {
   pub car: Value,
@@ -169,6 +206,20 @@ impl<'a> Iterator for ConsIterator<'a> {
 
       return val;
     })
+  }
+}
+
+impl<'a> ExactSizeIterator for ConsIterator<'a> {
+  fn len(&self) -> usize {
+    let mut cons = self.0;
+    let mut length = 0;
+
+    while cons.is_some() {
+      cons = cons.unwrap().cdr.as_ref().map(|rc: &Rc<ConsCell>| &*rc.borrow());
+      length += 1;
+    }
+
+    return length;
   }
 }
 
