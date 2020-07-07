@@ -92,172 +92,190 @@ pub fn default_env() -> Env {
     String::from("+"), 
     Value::NativeFunc(
       |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
+        let a = require_parameter("+", args, 0)?;
+        let b = require_parameter("+", args, 0)?;
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() + b.unwrap()));
-        }
+        match (a.as_int(), b.as_int()) {
+          (Some(a), Some(b)) => return Ok(Value::Int(a + b)),
+          _ => ()
+        };
 
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
+        match (a.as_float(), b.as_float()) {
+          (Some(a), Some(b)) => return Ok(Value::Float(a + b)),
+          _ => ()
+        };
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() + b.unwrap()));
-        }
+        match (a.as_string(), b.as_string()) {
+          (Some(a), Some(b)) => return Ok(Value::String(String::from(a) + b)),
+          _ => ()
+        };
 
-        let a = args.get(0).and_then(|a| a.as_string());
-        let b = args.get(1).and_then(|a| a.as_string());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::String(a.unwrap().to_owned() + b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers or strings") });
+        return Err(RuntimeError { msg: String::from("Function \"+\" requires arguments to be numbers or strings") });
       }));
     
   entries.insert(
     String::from("-"), 
     Value::NativeFunc(
       |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
+        let a = require_parameter("-", args, 0)?;
+        let b = require_parameter("-", args, 0)?;
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() - b.unwrap()));
-        }
+        match (a.as_int(), b.as_int()) {
+          (Some(a), Some(b)) => return Ok(Value::Int(a - b)),
+          _ => ()
+        };
 
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
+        match (a.as_float(), b.as_float()) {
+          (Some(a), Some(b)) => return Ok(Value::Float(a - b)),
+          _ => ()
+        };
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() - b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
+        return Err(RuntimeError { msg: String::from("Function \"-\" requires arguments to be numbers") });
       }));
     
   entries.insert(
     String::from("*"), 
     Value::NativeFunc(
       |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
+        let a = require_parameter("*", args, 0)?;
+        let b = require_parameter("*", args, 0)?;
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() * b.unwrap()));
-        }
+        match (a.as_int(), b.as_int()) {
+          (Some(a), Some(b)) => return Ok(Value::Int(a * b)),
+          _ => ()
+        };
 
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
+        match (a.as_float(), b.as_float()) {
+          (Some(a), Some(b)) => return Ok(Value::Float(a * b)),
+          _ => ()
+        };
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() * b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
+        return Err(RuntimeError { msg: String::from("Function \"*\" requires arguments to be numbers") });
       }));
 
   entries.insert(
     String::from("/"), 
     Value::NativeFunc(
       |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
+        let a = require_parameter("/", args, 0)?;
+        let b = require_parameter("/", args, 0)?;
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() / b.unwrap()));
-        }
+        match (a.as_int(), b.as_int()) {
+          (Some(a), Some(b)) => return Ok(Value::Int(a / b)),
+          _ => ()
+        };
 
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
+        match (a.as_float(), b.as_float()) {
+          (Some(a), Some(b)) => return Ok(Value::Float(a / b)),
+          _ => ()
+        };
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() / b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
+        return Err(RuntimeError { msg: String::from("Function \"/\" requires arguments to be numbers") });
       }));
 
   entries.insert(
     String::from("truncate"),
     Value::NativeFunc(
       |_env, args| {
-        let a = args.get(0).and_then(|a| a.as_int());
-        let b = args.get(1).and_then(|a| a.as_int());
+        let a = require_parameter("truncate", args, 0)?;
+        let b = require_parameter("truncate", args, 0)?;
 
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Int(a.unwrap() / b.unwrap()));
-        }
+        match (a.as_int(), b.as_int()) {
+          (Some(a), Some(b)) => return Ok(Value::Int(a / b)),
+          _ => ()
+        };
 
-        let a = args.get(0).and_then(|a| a.as_float());
-        let b = args.get(1).and_then(|a| a.as_float());
-
-        if a.is_some() && b.is_some() {
-          return Ok(Value::Float(a.unwrap() / b.unwrap()));
-        }
-
-        return Err(RuntimeError { msg: String::from("Args must be numbers") });
+        return Err(RuntimeError { msg: String::from("Function \"truncate\" requires arguments to be integers") });
       }));
-    
+  
+  // TODO: And and or should be secial forms
   entries.insert(
     String::from("and"), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0).unwrap().is_truthy() && args.get(1).unwrap().is_truthy()))
+        let a = require_parameter("and", args, 0)?;
+        let b = require_parameter("and", args, 0)?;
+
+        Ok(Value::from_truth(a.is_truthy() && b.is_truthy()))
       }));
 
   entries.insert(
     String::from("or"), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0).unwrap().is_truthy() || args.get(1).unwrap().is_truthy()))
+        let a = require_parameter("or", args, 0)?;
+        let b = require_parameter("or", args, 0)?;
+
+        Ok(Value::from_truth(a.is_truthy() || b.is_truthy()))
       }));
     
   entries.insert(
     String::from("not"), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(!args.get(0).unwrap().is_truthy()))
+        let a = require_parameter("not", args, 0)?;
+
+        Ok(Value::from_truth(!a.is_truthy()))
       }));
 
   entries.insert(
     String::from("=="), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0) == args.get(1)))
+        let a = require_parameter("==", args, 0)?;
+        let b = require_parameter("==", args, 0)?;
+
+        Ok(Value::from_truth(a == b))
       }));
 
   entries.insert(
     String::from("!="), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0) != args.get(1)))
+        let a = require_parameter("!=", args, 0)?;
+        let b = require_parameter("!=", args, 0)?;
+
+        Ok(Value::from_truth(a != b))
       }));
 
   entries.insert(
     String::from("<"), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0) < args.get(1)))
+        let a = require_parameter("<", args, 0)?;
+        let b = require_parameter("<", args, 0)?;
+
+        Ok(Value::from_truth(a < b))
       }));
+      
   entries.insert(
     String::from("<="), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0) <= args.get(1)))
+        let a = require_parameter("<=", args, 0)?;
+        let b = require_parameter("<=", args, 0)?;
+
+        Ok(Value::from_truth(a <= b))
       }));
+
   entries.insert(
     String::from(">"), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0) > args.get(1)))
+        let a = require_parameter(">", args, 0)?;
+        let b = require_parameter(">", args, 0)?;
+
+        Ok(Value::from_truth(a > b))
       }));
+
   entries.insert(
     String::from(">="), 
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(args.get(0) >= args.get(1)))
+        let a = require_parameter(">=", args, 0)?;
+        let b = require_parameter(">=", args, 0)?;
+
+        Ok(Value::from_truth(a >= b))
       }));
 
   Env {

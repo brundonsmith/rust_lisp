@@ -1,5 +1,4 @@
 MVP:
-- Come up with generalized error reporting for function and special-form signatures
 - Continue adding basic functions/forms:
   - defun
   - set
