@@ -1,6 +1,6 @@
 
 use std::{rc::Rc, collections::HashMap};
-use crate::{utils::vec_to_cons, model::{Value, Env, RuntimeError, ConsCell}};
+use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter}, model::{Value, Env, RuntimeError, ConsCell}};
 
 pub fn default_env() -> Env {
   let mut entries = HashMap::new();
@@ -9,7 +9,7 @@ pub fn default_env() -> Env {
     String::from("print"),
     Value::NativeFunc(
       |_env, args| {
-        let expr = args.get(0).unwrap();
+        let expr = require_parameter("print", args, 0)?;
 
         println!("{}", &expr);
         return Ok(expr.clone());
@@ -19,35 +19,35 @@ pub fn default_env() -> Env {
     String::from("null"),
     Value::NativeFunc(
       |_env, args| {
-        Ok(Value::from_truth(*args.get(0).unwrap() == Value::Nil))
+        let val = require_parameter("null", args, 0)?;
+
+        Ok(Value::from_truth(*val == Value::Nil))
       }));
 
   entries.insert(
     String::from("car"),
     Value::NativeFunc(
       |_env, args| {
-        let list = args.get(0).and_then(|a| a.as_list());
+        let list = require_list_parameter("car", args, 0)?;
 
-        return match list {
-          Some(cons_cell) => Ok(cons_cell.car.clone()),
-          None => Err(RuntimeError { msg: String::from("Arg must be list") })
-        };
+        return Ok(match list {
+          Some(c) => c.car.clone(),
+          None => Value::Nil
+        });
       }));
     
   entries.insert(
     String::from("cdr"),
     Value::NativeFunc(
       |_env, args| {
-        let list = args.get(0).and_then(|a| a.as_list());
+        let list = require_list_parameter("cdr", args, 0)?;
 
-        return match list {
-          Some(cons_cell) => Ok(
-            match cons_cell.cdr.as_ref() {
-              Some(cell) => Value::List(cell.clone()),
-              None => Value::Nil
-            }
-          ),
-          None => Err(RuntimeError { msg: String::from("Arg must be list") })
+        return match list.as_ref().map(|l| l.cdr.clone()) {
+          Some(cell) => match cell {
+            Some(c) => Ok(Value::List(c.clone())),
+            None => Ok(Value::Nil),
+          },
+          None => Ok(Value::Nil)
         };
       }));
     
@@ -55,17 +55,13 @@ pub fn default_env() -> Env {
     String::from("cons"),
     Value::NativeFunc(
       |_env, args| {
-        let car: Option<&Value> = args.get(0);
-        let cdr: Option<Rc<ConsCell>> = args.get(1).and_then(|a| a.as_list());
+        let car = require_parameter("cons", args, 0)?;
+        let cdr = require_list_parameter("cons", args, 1)?;
 
-        return match car {
-          Some(car) =>
-            Ok(Value::List(Rc::new(ConsCell {
-              car: car.clone(),
-              cdr: cdr.map(|c| c.clone())
-            }))),
-          None => Err(RuntimeError { msg: String::from("Requires 2 args") })
-        };
+        return Ok(Value::List(Rc::new(ConsCell {
+          car: car.clone(),
+          cdr: cdr.map(|c| c.clone())
+        })));
       }));
     
   entries.insert(
@@ -77,12 +73,11 @@ pub fn default_env() -> Env {
     String::from("length"),
     Value::NativeFunc(
       |_env, args| {
-        let list = &args[0];
+        let list = require_list_parameter("length", args, 0)?;
 
         return match list {
-          Value::List(cons) => Ok(Value::Int(cons.into_iter().len() as i32)),
-          Value::Nil => Ok(Value::Int(0)),
-          _ => Err(RuntimeError { msg: format!("Can't take length of {}", list) }),
+          Some(cons) => Ok(Value::Int(cons.into_iter().len() as i32)),
+          None => Ok(Value::Int(0)),
         };
       }));
 
