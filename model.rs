@@ -17,6 +17,20 @@ pub enum Value {
 
 impl Value {
 
+  pub fn type_name(&self) -> &str {
+    match self {
+      Value::NativeFunc(_) => "function",
+      Value::Lambda(_) => "function",
+      Value::Nil => "NIL",
+      Value::True => "T",
+      Value::String(_) => "string",
+      Value::List(_) => "list",
+      Value::Int(_) => "integer",
+      Value::Float(_) => "float",
+      Value::Symbol(_) => "symbol",
+    }
+  }
+
   pub fn from_truth(b: bool) -> Value {
     match b {
       true => Value::True,
@@ -115,12 +129,12 @@ impl PartialEq for Value {
       Value::NativeFunc(_) => false,
       Value::Nil => *other == Value::Nil,
       Value::True => *other == Value::True,
-      Value::Lambda(n) =>     match other { Value::Lambda(o) =>     n == o, _ => false },
-      Value::String(n) =>     match other { Value::String(o) =>     n == o, _ => false },
-      Value::List(n) => match other { Value::List(o) => n == o, _ => false },
-      Value::Int(n) =>           match other { Value::Int(o) =>           n == o, _ => false },
-      Value::Float(n) =>         match other { Value::Float(o) =>         n == o, _ => false },
-      Value::Symbol(n) =>     match other { Value::Symbol(o) =>     n == o, _ => false },
+      Value::Lambda(n) =>      match other { Value::Lambda(o) =>      n == o, _ => false },
+      Value::String(n) =>      match other { Value::String(o) =>      n == o, _ => false },
+      Value::List(n) =>  match other { Value::List(o) =>  n == o, _ => false },
+      Value::Int(n) =>            match other { Value::Int(o) =>            n == o, _ => false },
+      Value::Float(n) =>          match other { Value::Float(o) =>          n == o, _ => false },
+      Value::Symbol(n) =>      match other { Value::Symbol(o) =>      n == o, _ => false },
     }
   }
 }
@@ -161,7 +175,6 @@ impl PartialOrd for Value {
     }
   }
 }
-
 
 #[derive(Debug,PartialEq)]
 pub struct ConsCell {

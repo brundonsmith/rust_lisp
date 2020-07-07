@@ -31,8 +31,9 @@ pub fn default_env() -> Env {
         let list = require_list_parameter("car", args, 0)?;
 
         return Ok(match list {
-          Some(c) => c.car.clone(),
-          None => Value::Nil
+          Value::List(c) => c.car.clone(),
+          Value::Nil => Value::Nil,
+          _ => panic!("Argument validation didn't work properly"),
         });
       }));
     
@@ -42,13 +43,14 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("cdr", args, 0)?;
 
-        return match list.as_ref().map(|l| l.cdr.clone()) {
-          Some(cell) => match cell {
-            Some(c) => Ok(Value::List(c.clone())),
-            None => Ok(Value::Nil),
+        return Ok(match list {
+          Value::List(c) => match &c.cdr {
+            Some(c) => Value::List(c.clone()),
+            None => Value::Nil,
           },
-          None => Ok(Value::Nil)
-        };
+          Value::Nil => Value::Nil,
+          _ => panic!("Argument validation didn't work properly"),
+        });
       }));
     
   entries.insert(
@@ -60,7 +62,11 @@ pub fn default_env() -> Env {
 
         return Ok(Value::List(Rc::new(ConsCell {
           car: car.clone(),
-          cdr: cdr.map(|c| c.clone())
+          cdr: match cdr {
+            Value::List(c) => Some(c.clone()),
+            Value::Nil => None,
+            _ => panic!("Argument validation didn't work properly"),
+          }
         })));
       }));
     
@@ -76,8 +82,9 @@ pub fn default_env() -> Env {
         let list = require_list_parameter("length", args, 0)?;
 
         return match list {
-          Some(cons) => Ok(Value::Int(cons.into_iter().len() as i32)),
-          None => Ok(Value::Int(0)),
+          Value::List(cons) => Ok(Value::Int(cons.into_iter().len() as i32)),
+          Value::Nil => Ok(Value::Int(0)),
+          _ => panic!("Argument validation didn't work properly"),
         };
       }));
 
