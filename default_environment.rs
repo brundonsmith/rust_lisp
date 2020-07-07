@@ -93,7 +93,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("+", args, 0)?;
-        let b = require_parameter("+", args, 0)?;
+        let b = require_parameter("+", args, 1)?;
 
         match (a.as_int(), b.as_int()) {
           (Some(a), Some(b)) => return Ok(Value::Int(a + b)),
@@ -118,7 +118,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("-", args, 0)?;
-        let b = require_parameter("-", args, 0)?;
+        let b = require_parameter("-", args, 1)?;
 
         match (a.as_int(), b.as_int()) {
           (Some(a), Some(b)) => return Ok(Value::Int(a - b)),
@@ -138,7 +138,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("*", args, 0)?;
-        let b = require_parameter("*", args, 0)?;
+        let b = require_parameter("*", args, 1)?;
 
         match (a.as_int(), b.as_int()) {
           (Some(a), Some(b)) => return Ok(Value::Int(a * b)),
@@ -158,7 +158,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("/", args, 0)?;
-        let b = require_parameter("/", args, 0)?;
+        let b = require_parameter("/", args, 1)?;
 
         match (a.as_int(), b.as_int()) {
           (Some(a), Some(b)) => return Ok(Value::Int(a / b)),
@@ -178,7 +178,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("truncate", args, 0)?;
-        let b = require_parameter("truncate", args, 0)?;
+        let b = require_parameter("truncate", args, 1)?;
 
         match (a.as_int(), b.as_int()) {
           (Some(a), Some(b)) => return Ok(Value::Int(a / b)),
@@ -194,7 +194,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("and", args, 0)?;
-        let b = require_parameter("and", args, 0)?;
+        let b = require_parameter("and", args, 1)?;
 
         Ok(Value::from_truth(a.is_truthy() && b.is_truthy()))
       }));
@@ -204,7 +204,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("or", args, 0)?;
-        let b = require_parameter("or", args, 0)?;
+        let b = require_parameter("or", args, 1)?;
 
         Ok(Value::from_truth(a.is_truthy() || b.is_truthy()))
       }));
@@ -223,7 +223,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("==", args, 0)?;
-        let b = require_parameter("==", args, 0)?;
+        let b = require_parameter("==", args, 1)?;
 
         Ok(Value::from_truth(a == b))
       }));
@@ -233,7 +233,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("!=", args, 0)?;
-        let b = require_parameter("!=", args, 0)?;
+        let b = require_parameter("!=", args, 1)?;
 
         Ok(Value::from_truth(a != b))
       }));
@@ -243,17 +243,17 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("<", args, 0)?;
-        let b = require_parameter("<", args, 0)?;
+        let b = require_parameter("<", args, 1)?;
 
         Ok(Value::from_truth(a < b))
       }));
-      
+
   entries.insert(
     String::from("<="), 
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter("<=", args, 0)?;
-        let b = require_parameter("<=", args, 0)?;
+        let b = require_parameter("<=", args, 1)?;
 
         Ok(Value::from_truth(a <= b))
       }));
@@ -263,7 +263,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter(">", args, 0)?;
-        let b = require_parameter(">", args, 0)?;
+        let b = require_parameter(">", args, 1)?;
 
         Ok(Value::from_truth(a > b))
       }));
@@ -273,7 +273,7 @@ pub fn default_env() -> Env {
     Value::NativeFunc(
       |_env, args| {
         let a = require_parameter(">=", args, 0)?;
-        let b = require_parameter(">=", args, 0)?;
+        let b = require_parameter(">=", args, 1)?;
 
         Ok(Value::from_truth(a >= b))
       }));
