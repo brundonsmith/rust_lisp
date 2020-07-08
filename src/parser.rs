@@ -156,13 +156,17 @@ fn read(tokens: &Vec<String>) -> Result<Value,ParseError> {
 
 
 fn read_atom(token: &str) -> Value {
-  let token_uppercase = token.to_uppercase();
+  let token_lowercase = token.to_lowercase();
 
-  if token_uppercase == "T" {
+  if token_lowercase == "#t" {
     return Value::True;
   }
 
-  if token_uppercase == "NIL" {
+  if token_lowercase == "#f" {
+    return Value::False;
+  }
+
+  if token_lowercase == "nil" {
     return Value::Nil;
   }
 

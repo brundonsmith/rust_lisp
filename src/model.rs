@@ -6,6 +6,7 @@ use std::{cell::RefCell, borrow::Borrow, cmp::Ordering};
 pub enum Value {
   Nil,
   True,
+  False,
   Int(i32),
   Float(f32),
   String(String),
@@ -22,8 +23,9 @@ impl Value {
     match self {
       Value::NativeFunc(_) => "function",
       Value::Lambda(_) => "function",
-      Value::Nil => "NIL",
-      Value::True => "T",
+      Value::Nil => "()",
+      Value::True => "#t",
+      Value::False => "#f",
       Value::String(_) => "string",
       Value::List(_) => "list",
       Value::Int(_) => "integer",
@@ -36,13 +38,14 @@ impl Value {
   pub fn from_truth(b: bool) -> Value {
     match b {
       true => Value::True,
-      false => Value::Nil,
+      false => Value::False,
     }
   }
 
   pub fn is_truthy(&self) -> bool {
     match self {
       Value::Nil => false,
+      Value::False => false,
       _ => true,
     }
   }
@@ -95,7 +98,8 @@ impl Display for Value {
     match self {
       Value::NativeFunc(_) => write!(formatter, "<native_function>"),
       Value::Nil => write!(formatter, "NIL"),
-      Value::True => write!(formatter, "T"),
+      Value::True => write!(formatter, "#t"),
+      Value::False => write!(formatter, "#f"),
       Value::Lambda(n) => {
         let body_str = format!("{}", &n.body);
         return write!(formatter, "<func:(lambda {} {})>", n.argnames, &body_str[1..body_str.chars().count() - 1]);
@@ -116,6 +120,7 @@ impl Debug for Value {
       Value::NativeFunc(_) => write!(formatter, "<native_function>"),
       Value::Nil => write!(formatter, "Value::Nil"),
       Value::True => write!(formatter, "Value::True"),
+      Value::False => write!(formatter, "Value::False"),
       Value::Lambda(n) => write!(formatter, "Value::Lambda({:?})", n),
       Value::String(n) => write!(formatter, "Value::String({:?})", n),
       Value::List(n) => write!(formatter, "Value::List({:?})", n),
@@ -133,6 +138,7 @@ impl PartialEq for Value {
       Value::NativeFunc(_) => false,
       Value::Nil =>  match *other { Value::Nil => true, _ => false },
       Value::True => match *other { Value::True => true, _ => false },
+      Value::False => match *other { Value::False => true, _ => false },
       Value::Lambda(n) =>      match other { Value::Lambda(o) =>      n == o, _ => false },
       Value::String(n) =>      match other { Value::String(o) =>      n == o, _ => false },
       Value::List(n) =>  match other { Value::List(o) =>  n == o, _ => false },
@@ -157,6 +163,13 @@ impl PartialOrd for Value {
       },
       Value::True => {
         if other.is_truthy() {
+          return Some(Ordering::Equal);
+        } else {
+          return Some(Ordering::Greater);
+        }
+      },
+      Value::False => {
+        if !other.is_truthy() {
           return Some(Ordering::Equal);
         } else {
           return Some(Ordering::Greater);

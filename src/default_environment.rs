@@ -16,12 +16,75 @@ pub fn default_env() -> Env {
       }));
 
   entries.insert(
-    String::from("null"),
+    String::from("null?"),
     Value::NativeFunc(
       |_env, args| {
-        let val = require_parameter("null", args, 0)?;
+        let val = require_parameter("null?", args, 0)?;
 
         Ok(Value::from_truth(*val == Value::Nil))
+      }));
+    
+  entries.insert(
+    String::from("number?"),
+    Value::NativeFunc(
+      |_env, args| {
+        let val = require_parameter("number?", args, 0)?;
+
+        Ok(match val {
+          Value::Int(_) => Value::True,
+          Value::Float(_) => Value::True,
+          _ => Value::Nil,
+        })
+      }));
+  
+  entries.insert(
+    String::from("symbol?"),
+    Value::NativeFunc(
+      |_env, args| {
+        let val = require_parameter("symbol?", args, 0)?;
+
+        Ok(match val {
+          Value::Symbol(_) => Value::True,
+          _ => Value::Nil,
+        })
+      }));
+
+  entries.insert(
+    String::from("boolean?"),
+    Value::NativeFunc(
+      |_env, args| {
+        let val = require_parameter("boolean?", args, 0)?;
+
+        Ok(match val {
+          Value::True => Value::True,
+          Value::False => Value::True,
+          _ => Value::Nil,
+        })
+      }));
+    
+  entries.insert(
+    String::from("procedure?"),
+    Value::NativeFunc(
+      |_env, args| {
+        let val = require_parameter("procedure?", args, 0)?;
+
+        Ok(match val {
+          Value::Lambda(_) => Value::True,
+          Value::NativeFunc(_) => Value::True,
+          _ => Value::Nil,
+        })
+      }));
+
+  entries.insert(
+    String::from("pair?"),
+    Value::NativeFunc(
+      |_env, args| {
+        let val = require_parameter("pair?", args, 0)?;
+
+        Ok(match val {
+          Value::List(_) => Value::True,
+          _ => Value::Nil,
+        })
       }));
 
   entries.insert(
