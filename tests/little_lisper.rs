@@ -28,16 +28,15 @@ fn two() {
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
 }
 
-// #[test]
-// fn three() {
-//   let source = "(car (list))";
-//   let ast = parse(source).unwrap();
+#[test]
+#[should_panic]
+fn three() {
+  let source = "(car (list))";
+  let ast = parse(source).unwrap();
 
-//   let env = Rc::new(RefCell::new(default_env()));
-//   let result = eval(env, &ast, false, false);
-
-//   assert_eq!(result, Value::Nil);
-// }
+  let env = Rc::new(RefCell::new(default_env()));
+  eval(env, &ast, false, false);
+}
 
 #[test]
 fn four() {
