@@ -42,6 +42,14 @@ fn parse_basic_expression() {
   })));
 }
 
+#[test]
+fn parse_nil() {
+  let source = "()";
+  let ast = parse(source).unwrap();
+
+  assert_eq!(ast, Value::Nil);
+}
+
 // #[test]
 // fn test_fib() {
 //   let source = "
