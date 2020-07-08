@@ -1,6 +1,6 @@
 
 use std::{rc::Rc, collections::HashMap};
-use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
+use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
 
 pub fn default_env() -> Env {
   let mut entries = HashMap::new();
@@ -74,6 +74,24 @@ pub fn default_env() -> Env {
     String::from("list"),
     Value::NativeFunc(
       |_env, args| Ok(vec_to_cons(args))));
+  
+  entries.insert(
+    String::from("nth"),
+    Value::NativeFunc(
+      |_env, args| {
+        let index = require_int_parameter("nth", args, 0)?;
+        let list = require_list_parameter("nth", args, 1)?;
+
+        return Ok(match list {
+          Value::List(cons) => match cons.into_iter().nth(index as usize) {
+            Some(v) => v.clone(),
+            None => Value::Nil
+          },
+          Value::Nil => Value::Nil,
+          _ => panic!("Argument validation didn't work properly"),
+        });
+      }));
+  
 
   entries.insert(
     String::from("length"),
