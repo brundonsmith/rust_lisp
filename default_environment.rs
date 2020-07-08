@@ -1,6 +1,6 @@
 
 use std::{rc::Rc, collections::HashMap};
-use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter}, model::{Value, Env, RuntimeError, ConsCell}};
+use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
 
 pub fn default_env() -> Env {
   let mut entries = HashMap::new();
@@ -276,6 +276,15 @@ pub fn default_env() -> Env {
         let b = require_parameter(">=", args, 1)?;
 
         Ok(Value::from_truth(a >= b))
+      }));
+
+  entries.insert(
+    String::from("eval"), 
+    Value::NativeFunc(
+      |env, args| {
+        let expr = require_parameter("eval", args, 0)?;
+
+        Ok(eval(env, expr))
       }));
 
   Env {

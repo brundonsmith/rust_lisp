@@ -3,7 +3,6 @@ MVP:
   - defun
   - set
   - list comprehension
-- expose read/eval to lisp code
 - Support multi-statement eval (implicit block)
 - More closely adhere to either scheme or common-lisp syntax
 
