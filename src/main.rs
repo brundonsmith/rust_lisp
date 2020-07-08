@@ -1,9 +1,9 @@
 
-mod model;
 mod parser;
+mod default_environment;
 mod interpreter;
 mod utils;
-mod default_environment;
+mod model;
 
 use parser::parse;
 use default_environment::default_env;
@@ -20,6 +20,6 @@ fn main() {
     io::stdout().flush().unwrap();
     io::stdin().read_line(&mut buf).unwrap();
 
-    println!("{}", eval(env.clone(), &parse(&buf).unwrap()));
+    println!("{}", eval(env.clone(), &parse(&buf).unwrap(), false, false));
   }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "rust-lisp"
+name = "rust_lisp"
 version = "0.1.0"
 authors = ["brundolf"]
 edition = "2018"
@@ -9,5 +9,5 @@ edition = "2018"
 [dependencies]
 
 [[bin]]
-name = "rust-lisp"
-path = "main.rs"
+name = "rust_lisp"
+path = "src/main.rs"

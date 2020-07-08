@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'rust-lisp'",
+            "name": "Debug executable 'rust_lisp'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=rust-lisp",
-                    "--package=rust-lisp"
+                    "--bin=rust_lisp",
+                    "--package=rust_lisp"
                 ],
                 "filter": {
-                    "name": "rust-lisp",
+                    "name": "rust_lisp",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'rust-lisp'",
+            "name": "Debug unit tests in executable 'rust_lisp'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=rust-lisp",
-                    "--package=rust-lisp"
+                    "--bin=rust_lisp",
+                    "--package=rust_lisp"
                 ],
                 "filter": {
-                    "name": "rust-lisp",
+                    "name": "rust_lisp",
                     "kind": "bin"
                 }
             },
