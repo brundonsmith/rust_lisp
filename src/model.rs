@@ -131,8 +131,8 @@ impl PartialEq for Value {
   fn eq(&self, other: &Self) -> bool {
     match self {
       Value::NativeFunc(_) => false,
-      Value::Nil => *other == Value::Nil,
-      Value::True => *other == Value::True,
+      Value::Nil =>  match *other { Value::Nil => true, _ => false },
+      Value::True => match *other { Value::True => true, _ => false },
       Value::Lambda(n) =>      match other { Value::Lambda(o) =>      n == o, _ => false },
       Value::String(n) =>      match other { Value::String(o) =>      n == o, _ => false },
       Value::List(n) =>  match other { Value::List(o) =>  n == o, _ => false },
