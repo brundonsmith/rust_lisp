@@ -59,3 +59,25 @@ fn five() {
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(2), Value::Int(3) ]));
 }
+
+#[test]
+#[should_panic]
+fn six() {
+  let source = "(cons (list 1 2 3) 4)";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  eval(env, &ast, false, false);
+}
+
+
+#[test]
+fn seven() {
+  let source = "(cons 4 (list 1 2 3))";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast, false, false);
+
+  assert_eq!(result, vec_to_cons(&vec![ Value::Int(4), Value::Int(1), Value::Int(2), Value::Int(3) ]));
+}
