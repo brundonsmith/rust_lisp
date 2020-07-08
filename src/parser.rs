@@ -113,8 +113,15 @@ fn read(tokens: &Vec<String>) -> Result<Value,ParseError> {
           msg: format!("Unexpected ')'")
         });
       } else {
-        let finished = stack.pop().unwrap();
+        let mut finished = stack.pop().unwrap();
         let destination = stack.last_mut().unwrap();
+
+        // () is Nil
+        if let ParseTree::List(vec) = &finished {
+          if vec.len() == 0 {
+            finished = ParseTree::Atom(Value::Nil);
+          }
+        }
 
         match destination {
           ParseTree::List(v) => v.push(finished),
