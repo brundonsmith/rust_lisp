@@ -90,6 +90,30 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
           }
         },
 
+        Value::Symbol(symbol) if symbol == "and" => {
+          let remaining = list.cdr.clone().unwrap();
+          let mut list_iter = remaining.into_iter();
+          let a = list_iter.nth(0).unwrap();
+          let b = list_iter.nth(0).unwrap();
+
+          return Value::from_truth(
+              eval(env.clone(), a).is_truthy() 
+              && eval(env.clone(), b).is_truthy()
+          );
+        },
+
+        Value::Symbol(symbol) if symbol == "or" => {
+          let remaining = list.cdr.clone().unwrap();
+          let mut list_iter = remaining.into_iter();
+          let a = list_iter.nth(0).unwrap();
+          let b = list_iter.nth(0).unwrap();
+
+          return Value::from_truth(
+              eval(env.clone(), a).is_truthy() 
+              || eval(env.clone(), b).is_truthy()
+          );
+        },
+
 
         // function call
         _ => {

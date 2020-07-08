@@ -187,27 +187,6 @@ pub fn default_env() -> Env {
 
         return Err(RuntimeError { msg: String::from("Function \"truncate\" requires arguments to be integers") });
       }));
-  
-  // TODO: And and or should be secial forms
-  entries.insert(
-    String::from("and"), 
-    Value::NativeFunc(
-      |_env, args| {
-        let a = require_parameter("and", args, 0)?;
-        let b = require_parameter("and", args, 1)?;
-
-        Ok(Value::from_truth(a.is_truthy() && b.is_truthy()))
-      }));
-
-  entries.insert(
-    String::from("or"), 
-    Value::NativeFunc(
-      |_env, args| {
-        let a = require_parameter("or", args, 0)?;
-        let b = require_parameter("or", args, 1)?;
-
-        Ok(Value::from_truth(a.is_truthy() || b.is_truthy()))
-      }));
     
   entries.insert(
     String::from("not"), 
