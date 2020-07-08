@@ -30,11 +30,11 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("car", args, 0)?;
 
-        return Ok(match list {
-          Value::List(c) => c.car.clone(),
-          Value::Nil => Value::Nil,
+        return match list {
+          Value::List(c) => Ok(c.car.clone()),
+          Value::Nil => Err(RuntimeError { msg: String::from("Attempted to apply car on nil") }),
           _ => panic!("Argument validation didn't work properly"),
-        });
+        };
       }));
     
   entries.insert(
