@@ -12,7 +12,7 @@ fn eval_basic_expression() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast, false, false);
+  let result = eval(env, &ast);
 
   assert_eq!(result, Value::Int(4));
 }
@@ -32,7 +32,7 @@ fn eval_fib() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast, false, false);
+  let result = eval(env, &ast);
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(5), Value::Int(8), Value::Int(13), Value::Int(21) ]));
 }
@@ -52,13 +52,14 @@ fn eval_fib_deep() {
             ((== n 1) 1)
             (#t (fib-normal n))))) ;;another comment
 
-      (list (fib 10)))";
+      (fib 10))";
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  println!("{}", eval(env, &ast, false, false));
+  let result = eval(env, &ast);
+  println!("result: {}", result);
 
-  // assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(5), Value::Int(8), Value::Int(13), Value::Int(21) ]));
+  // assert_eq!(result, Value::Int(55));
 }
 
 #[test]
@@ -99,7 +100,7 @@ fn eval_merge_sort() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast, false, false);
+  let result = eval(env, &ast);
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(2), Value::Int(5), Value::Int(5), Value::Int(7) ]));
 }
@@ -152,7 +153,7 @@ fn bench_merge_sort() {
 
   let start = SystemTime::now();
   // for _ in 0..10000 {
-    eval(env.clone(), &ast, false, false);
+    eval(env.clone(), &ast);
   // }
   let end = SystemTime::now();
 

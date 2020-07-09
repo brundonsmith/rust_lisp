@@ -344,7 +344,7 @@ pub fn default_env() -> Env {
       |env, args| {
         let expr = require_parameter("eval", args, 0)?;
 
-        Ok(eval(env, expr, false, false))
+        Ok(eval(env, expr))
       }));
 
   Env {
