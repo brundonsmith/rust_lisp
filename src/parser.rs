@@ -96,7 +96,7 @@ fn tokenize(code: &str) -> Vec<String> {
   return tokens;
 }
 
-fn read(tokens: &Vec<String>) -> Result<Value,ParseError> {
+fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List(vec![]) ];
   let mut parenths = 0;
 
@@ -146,12 +146,12 @@ fn read(tokens: &Vec<String>) -> Result<Value,ParseError> {
     });
   }
 
-  let parse_tree = match stack.into_iter().last().unwrap() {
-    ParseTree::List(vec) => vec[0].clone(),
-    _ => ParseTree::Atom(Value::Nil)
+  let parse_trees = match stack.into_iter().last().unwrap() {
+    ParseTree::List(vec) => vec,
+    _ => vec![ ParseTree::Atom(Value::Nil) ]
   };
 
-  return Ok(parse_tree.into_expression());
+  return Ok(parse_trees.into_iter().map(|t| t.into_expression()).collect());
 }
 
 
@@ -188,7 +188,7 @@ fn read_atom(token: &str) -> Value {
   return Value::Symbol(String::from(token));
 }
 
-pub fn parse(code: &str) -> Result<Value,ParseError> {
+pub fn parse(code: &str) -> Result<Vec<Value>,ParseError> {
   read(&tokenize(code))
 }
 

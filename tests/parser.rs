@@ -4,12 +4,13 @@ use rust_lisp::{parse, model::{ConsCell, Value}};
 
 #[test]
 fn parse_basic_expression() {
-  let source = "(list 
+  let source = "
+  (list 
     (* 1 2)  ;; a comment
     (/ 6 3 \"foo\"))";
   let ast = parse(source).unwrap();
 
-  assert_eq!(ast, Value::List(Rc::new(ConsCell {
+  assert_eq!(ast[0], Value::List(Rc::new(ConsCell {
     car: Value::Symbol(String::from("list")),
     cdr: Some(Rc::new(ConsCell {
       car: Value::List(Rc::new(ConsCell {
@@ -47,7 +48,42 @@ fn parse_nil() {
   let source = "()";
   let ast = parse(source).unwrap();
 
-  assert_eq!(ast, Value::Nil);
+  assert_eq!(ast[0], Value::Nil);
+}
+
+#[test]
+fn parse_multiple_lines() {
+  let source = "
+    (print 1)
+    (print 2)
+    (print 3)";
+  let ast = parse(source).unwrap();
+
+  assert_eq!(ast, vec![
+    Value::List(Rc::new(ConsCell {
+      car: Value::Symbol(String::from("print")),
+      cdr: Some(Rc::new(ConsCell {
+        car: Value::Int(1),
+        cdr: None
+      }))
+    })),
+
+    Value::List(Rc::new(ConsCell {
+      car: Value::Symbol(String::from("print")),
+      cdr: Some(Rc::new(ConsCell {
+        car: Value::Int(2),
+        cdr: None
+      }))
+    })),
+
+    Value::List(Rc::new(ConsCell {
+      car: Value::Symbol(String::from("print")),
+      cdr: Some(Rc::new(ConsCell {
+        car: Value::Int(3),
+        cdr: None
+      }))
+    }))
+  ]);
 }
 
 // #[test]

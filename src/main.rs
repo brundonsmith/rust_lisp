@@ -20,6 +20,8 @@ fn main() {
     io::stdout().flush().unwrap();
     io::stdin().read_line(&mut buf).unwrap();
 
-    println!("{}", eval(env.clone(), &parse(&buf).unwrap()).unwrap());
+    for expr in parse(&buf).unwrap() {
+      println!("{}", eval(env.clone(), &expr).unwrap());
+    }
   }
 }

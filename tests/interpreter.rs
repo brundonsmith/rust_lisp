@@ -12,7 +12,7 @@ fn eval_basic_expression() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast).unwrap();
+  let result = eval(env, &ast[0]).unwrap();
 
   assert_eq!(result, Value::Int(4));
 }
@@ -29,7 +29,7 @@ fn eval_let() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast).unwrap();
+  let result = eval(env, &ast[0]).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
 }
@@ -49,7 +49,7 @@ fn eval_let_scope() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast).unwrap();
+  let result = eval(env, &ast[0]).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
 }
@@ -69,7 +69,7 @@ fn eval_fib() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast).unwrap();
+  let result = eval(env, &ast[0]).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(5), Value::Int(8), Value::Int(13), Value::Int(21) ]));
 }
@@ -93,7 +93,7 @@ fn eval_fib_deep() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast).unwrap();
+  let result = eval(env, &ast[0]).unwrap();
   println!("result: {}", result);
 
   // assert_eq!(result, Value::Int(55));
@@ -129,7 +129,7 @@ fn eval_merge_sort() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast).unwrap();
+  let result = eval(env, &ast[0]).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(2), Value::Int(5), Value::Int(5), Value::Int(7) ]));
 }
