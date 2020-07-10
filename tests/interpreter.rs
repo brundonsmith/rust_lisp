@@ -18,6 +18,43 @@ fn eval_basic_expression() {
 }
 
 #[test]
+fn eval_let() {
+  let source = "(let ((foo 12)
+                            (bar (+ 4 3))
+                            (blah \"stuff\"))
+                        (print foo)
+                        (print bar)
+                        (print blah)
+                        (list (* foo bar) (+ blah \" also\")))";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast);
+
+  assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
+}
+
+#[test]
+#[should_panic]
+fn eval_let_scope() {
+  let source = "(begin
+    (let ((foo 12)
+          (bar (+ 4 3))
+          (blah \"stuff\"))
+      (print foo)
+      (print bar)
+      (print blah))
+
+    (* foo bar))";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast);
+
+  assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
+}
+
+#[test]
 fn eval_fib() {
   let source = "
     (begin

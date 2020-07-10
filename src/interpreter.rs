@@ -1,5 +1,5 @@
 
-use crate::{utils::vec_to_cons, model::{Value, Env, RuntimeError, Lambda, ConsCell}};
+use crate::{model::{Value, Env, RuntimeError, Lambda}};
 use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
@@ -13,13 +13,13 @@ fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeEr
 }
 
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
-  println!("eval {}", &expression);
+  // println!("eval {}", &expression);
   // println!("{}", &env.borrow());
 
-  let mut result: Result<Value,RuntimeError> = match expression {
+  let result: Result<Value,RuntimeError> = match expression {
 
     // look up symbol
-    Value::Symbol(symbol) => match env.borrow_mut().find(&symbol) {
+    Value::Symbol(symbol) => match env.borrow().find(&symbol) {
       Some(expr) => Ok(expr.clone()),
       None => Err(RuntimeError { msg: format!("\"{}\" is not defined", symbol) }),
     },
@@ -30,16 +30,35 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Value {
 
         // special forms
         Value::Symbol(symbol) if symbol == "define" => {
-          // println!("{}", &list);
           let symbol = list.cdr.clone().map(|cdr| cdr.car.as_symbol()).unwrap().unwrap();
           let value_expr = list.cdr.clone().unwrap().cdr.clone().unwrap().car.clone();
           let value = eval(env.clone(), &value_expr);
 
-          // println!("defined {}", &symbol);
           env.borrow_mut().entries.insert(symbol, value.clone());
-          // println!("{}", &env.borrow());
 
           Ok(value)
+        },
+
+        Value::Symbol(symbol) if symbol == "let" => {
+          let let_env = Rc::new(RefCell::new(Env {
+            parent: Some(env.clone()),
+            entries: HashMap::new()
+          }));
+          let declarations = list.cdr.clone().map(|c| c.car.clone()).unwrap();
+
+          for decl in declarations.as_list().unwrap().into_iter() {
+            let decl_cons = decl.as_list().unwrap();
+            let mut decl_iter = decl_cons.into_iter();
+            let symbol = decl_iter.nth(0).unwrap().as_symbol().unwrap();
+            let expr = decl_iter.nth(0).unwrap();
+
+            let result = eval(let_env.clone(), &expr);
+            let_env.borrow_mut().entries.insert(symbol, result);
+          }
+
+          let body = Value::List(list.cdr.clone().unwrap().cdr.clone().unwrap());
+
+          evaluate_block(let_env.clone(), &body)
         },
 
         Value::Symbol(symbol) if symbol == "lambda" => {

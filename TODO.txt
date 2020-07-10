@@ -6,6 +6,7 @@ MVP:
   - macros
   - applyfunc
   - list comprehension
+  - range
 - Support multi-statement eval (implicit block)
 - More closely adhere to either scheme or common-lisp syntax
 

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::{fmt::{Debug, Display}, collections::HashMap};
-use std::{cell::RefCell, borrow::Borrow, cmp::Ordering};
+use std::{cell::{Ref, RefCell}, borrow::Borrow, cmp::Ordering};
 
 #[derive(Clone)]
 pub enum Value {
