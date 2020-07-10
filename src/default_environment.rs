@@ -155,6 +155,68 @@ pub fn default_env() -> Env {
         });
       }));
   
+  entries.insert(
+    String::from("map"),
+    Value::NativeFunc(
+      |env, args| {
+        let func = require_parameter("map", args, 0)?;
+        let list = require_list_parameter("map", args, 1)?;
+
+        Ok(match list {
+          Value::List(cons) => {
+            let mut result_vec = vec![];
+
+            for v in cons.into_iter() {
+              let expr = Value::List(Rc::new(ConsCell {
+                car: func.clone(),
+                cdr: Some(Rc::new(ConsCell {
+                  car: v.clone(),
+                  cdr: None
+                }))
+              }));
+
+              result_vec.push(eval(env.clone(), &expr)?);
+            }
+
+            vec_to_cons(&result_vec)
+          },
+          Value::Nil => list.clone(),
+          _ => panic!("Argument validation didn't work properly"),
+        })
+      }));
+
+    
+  entries.insert(
+    String::from("filter"),
+    Value::NativeFunc(
+      |env, args| {
+        let func = require_parameter("filter", args, 0)?;
+        let list = require_list_parameter("filter", args, 1)?;
+
+        Ok(match list {
+          Value::List(cons) => {
+            let mut result_vec = vec![];
+
+            for v in cons.into_iter() {
+              let expr = Value::List(Rc::new(ConsCell {
+                car: func.clone(),
+                cdr: Some(Rc::new(ConsCell {
+                  car: v.clone(),
+                  cdr: None
+                }))
+              }));
+
+              if eval(env.clone(), &expr)?.is_truthy() {
+                result_vec.push(v.clone());
+              }
+            }
+
+            vec_to_cons(&result_vec)
+          },
+          Value::Nil => list.clone(),
+          _ => panic!("Argument validation didn't work properly"),
+        })
+      }));
 
   entries.insert(
     String::from("length"),
@@ -169,6 +231,16 @@ pub fn default_env() -> Env {
         };
       }));
 
+  entries.insert(
+    String::from("range"),
+    Value::NativeFunc(
+      |_env, args| {
+        let start = require_int_parameter("range", args, 0)?;
+        let end = require_int_parameter("range", args, 1)?;
+
+        Ok(vec_to_cons(&(start..end).map(|i| Value::Int(i)).collect()))
+      }));
+    
   entries.insert(
     String::from("+"), 
     Value::NativeFunc(
@@ -347,6 +419,23 @@ pub fn default_env() -> Env {
         eval(env, expr)
       }));
 
+  entries.insert(
+    String::from("apply"),
+    Value::NativeFunc(
+      |env, args| {
+        let func = require_parameter("apply", args, 0)?;
+        let params = require_list_parameter("apply", args, 1)?;
+
+        eval(env.clone(), &Value::List(Rc::new(ConsCell {
+          car: func.clone(),
+          cdr: match params {
+            Value::List(cons) => Some(cons.clone()),
+            Value::Nil => None,
+            _ => panic!("Argument validation didn't work properly"),
+          }
+        })))
+      }));
+    
   Env {
     parent: None,
     entries

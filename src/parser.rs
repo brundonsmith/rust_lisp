@@ -180,7 +180,7 @@ fn read_atom(token: &str) -> Value {
     return Value::Float(as_float.unwrap());
   }
 
-  if token.chars().nth(0).map_or(false, |c| c == '"') 
+  if token.chars().next().map_or(false, |c| c == '"') 
   && token.chars().nth_back(0).map_or(false, |c| c == '"') {
     return Value::String(String::from(&token[1..token.chars().count() - 1]))
   }

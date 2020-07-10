@@ -103,35 +103,27 @@ fn eval_fib_deep() {
 fn eval_merge_sort() {
   let source = "
     (begin
-      (define 
-        list-head 
-        (lambda (lst n) 
+      (defun list-head (lst n) 
           (if (== n 0) 
             (list) 
-            (cons (car lst) (list-head (cdr lst) (- n 1))))))
+            (cons (car lst) (list-head (cdr lst) (- n 1)))))
 
-      (define
-        list-tail 
-        (lambda (lst n) 
+      (defun list-tail (lst n) 
           (if (== n 0) 
             lst 
-            (list-tail (cdr lst) (- n 1)))))
+            (list-tail (cdr lst) (- n 1))))
 
-      (define 
-        merge 
-        (lambda (lst-a lst-b)
+      (defun merge (lst-a lst-b)
           (cond ((not lst-a) lst-b)
                 ((not lst-b) lst-a)
                 ((< (car lst-a) (car lst-b)) (cons (car lst-a) (merge (cdr lst-a) lst-b)))
-                (#t (cons (car lst-b) (merge lst-a (cdr lst-b)))))))
+                (#t (cons (car lst-b) (merge lst-a (cdr lst-b))))))
 
-      (define 
-        mergesort 
-        (lambda (lst)
+      (defun mergesort (lst)
           (if (== (length lst) 1)
             lst
             (merge (mergesort (list-head lst (truncate (length lst) 2)))
-                  (mergesort (list-tail lst (truncate (length lst) 2)))))))
+                  (mergesort (list-tail lst (truncate (length lst) 2))))))
 
       (mergesort (list 7 2 5 0 1 5)))";
   let ast = parse(source).unwrap();

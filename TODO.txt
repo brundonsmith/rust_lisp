@@ -2,12 +2,10 @@ MVP:
 - Continue adding basic functions/forms:
   - defun
   - set
-  - let
   - macros
-  - applyfunc
-  - list comprehension
-  - range
   - timestamp
+- backtick shortcut
+- some kind of key/value structure
 - Support multi-statement eval (implicit block)
 - More closely adhere to either scheme or common-lisp syntax
 
@@ -21,3 +19,5 @@ Other:
 - Optional arguments
 - Use Nil instead of Option?
 - Just use cons cells for native function arguments?
+- Instead of vec_to_cons, make it possible to collect an iterator into a cons
+- Allow single-quotes? (backticks?)

@@ -1,5 +1,5 @@
 
-use crate::{model::{Value, Env, RuntimeError, Lambda}};
+use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
 use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
@@ -39,26 +39,22 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           Ok(value)
         },
 
-        Value::Symbol(symbol) if symbol == "let" => {
-          let let_env = Rc::new(RefCell::new(Env {
-            parent: Some(env.clone()),
-            entries: HashMap::new()
-          }));
-          let declarations = list.cdr.clone().map(|c| c.car.clone()).unwrap();
+        Value::Symbol(symbol) if symbol == "defun" => {
+          let mut list_iter = list.into_iter();
+          list_iter.next().unwrap(); // skip "defun"
+          let symbol = list_iter.next().unwrap().as_symbol().unwrap();
+          let argnames = Rc::new(list_iter.next().unwrap().clone());
+          let body = Rc::new(vec_to_cons(&list_iter.map(|v| v.clone()).collect()));
 
-          for decl in declarations.as_list().unwrap().into_iter() {
-            let decl_cons = decl.as_list().unwrap();
-            let mut decl_iter = decl_cons.into_iter();
-            let symbol = decl_iter.nth(0).unwrap().as_symbol().unwrap();
-            let expr = decl_iter.nth(0).unwrap();
+          let lambda = Value::Lambda(Lambda {
+            env: env.clone(),
+            argnames,
+            body
+          });
 
-            let result = eval(let_env.clone(), &expr)?;
-            let_env.borrow_mut().entries.insert(symbol, result);
-          }
+          env.borrow_mut().entries.insert(symbol, lambda);
 
-          let body = Value::List(list.cdr.clone().unwrap().cdr.clone().unwrap());
-
-          evaluate_block(let_env.clone(), &body)
+          Ok(Value::Nil)
         },
 
         Value::Symbol(symbol) if symbol == "lambda" => {
@@ -74,6 +70,28 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
             argnames,
             body
           }))
+        },
+
+        Value::Symbol(symbol) if symbol == "let" => {
+          let let_env = Rc::new(RefCell::new(Env {
+            parent: Some(env.clone()),
+            entries: HashMap::new()
+          }));
+          let declarations = list.cdr.clone().map(|c| c.car.clone()).unwrap();
+
+          for decl in declarations.as_list().unwrap().into_iter() {
+            let decl_cons = decl.as_list().unwrap();
+            let mut decl_iter = decl_cons.into_iter();
+            let symbol = decl_iter.next().unwrap().as_symbol().unwrap();
+            let expr = decl_iter.next().unwrap();
+
+            let result = eval(let_env.clone(), &expr)?;
+            let_env.borrow_mut().entries.insert(symbol, result);
+          }
+
+          let body = Value::List(list.cdr.clone().unwrap().cdr.clone().unwrap());
+
+          evaluate_block(let_env.clone(), &body)
         },
 
         Value::Symbol(symbol) if symbol == "begin" => {
@@ -102,9 +120,9 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         Value::Symbol(symbol) if symbol == "if" => {
           let remaining = list.cdr.clone().unwrap();
           let mut list_iter = remaining.into_iter();
-          let condition = list_iter.nth(0).unwrap();
-          let then_result = list_iter.nth(0).unwrap();
-          let else_result = list_iter.nth(0);
+          let condition = list_iter.next().unwrap();
+          let then_result = list_iter.next().unwrap();
+          let else_result = list_iter.next();
 
           if eval(env.clone(), condition)?.is_truthy() {
             Ok(eval(env.clone(), then_result)?)
@@ -119,8 +137,8 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         Value::Symbol(symbol) if symbol == "and" => {
           let remaining = list.cdr.clone().unwrap();
           let mut list_iter = remaining.into_iter();
-          let a = list_iter.nth(0).unwrap();
-          let b = list_iter.nth(0).unwrap();
+          let a = list_iter.next().unwrap();
+          let b = list_iter.next().unwrap();
 
           Ok(Value::from_truth(
               eval(env.clone(), a)?.is_truthy() 
@@ -131,8 +149,8 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         Value::Symbol(symbol) if symbol == "or" => {
           let remaining = list.cdr.clone().unwrap();
           let mut list_iter = remaining.into_iter();
-          let a = list_iter.nth(0).unwrap();
-          let b = list_iter.nth(0).unwrap();
+          let a = list_iter.next().unwrap();
+          let b = list_iter.next().unwrap();
 
           Ok(Value::from_truth(
               eval(env.clone(), a)?.is_truthy() 
