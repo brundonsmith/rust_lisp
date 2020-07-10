@@ -1,5 +1,5 @@
 
-use std::{cell::RefCell, rc::Rc, time::SystemTime};
+use std::{cell::RefCell, rc::Rc};
 use rust_lisp::model::Value;
 use rust_lisp::parse;
 use rust_lisp::eval;
@@ -12,7 +12,7 @@ fn one() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast);
+  let result = eval(env, &ast).unwrap();
 
   assert_eq!(result, Value::Int(1));
 }
@@ -23,7 +23,7 @@ fn two() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast);
+  let result = eval(env, &ast).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
 }
@@ -35,7 +35,7 @@ fn three() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  eval(env, &ast);
+  eval(env, &ast).unwrap();
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn four() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast);
+  let result = eval(env, &ast).unwrap();
 
   assert_eq!(result, Value::String(String::from("hotdogs")));
 }
@@ -55,7 +55,7 @@ fn five() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast);
+  let result = eval(env, &ast).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(2), Value::Int(3) ]));
 }
@@ -67,7 +67,7 @@ fn six() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  eval(env, &ast);
+  eval(env, &ast).unwrap();
 }
 
 
@@ -77,7 +77,7 @@ fn seven() {
   let ast = parse(source).unwrap();
 
   let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast);
+  let result = eval(env, &ast).unwrap();
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(4), Value::Int(1), Value::Int(2), Value::Int(3) ]));
 }
