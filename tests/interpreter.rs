@@ -18,6 +18,28 @@ fn eval_basic_expression() {
 }
 
 #[test]
+fn eval_quote_1() {
+  let source = "(quote \"stuff\")";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast[0]).unwrap();
+
+  assert_eq!(result, Value::String(String::from("stuff")));
+}
+
+#[test]
+fn eval_quote_2() {
+  let source = "(quote (1 2 3))";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast[0]).unwrap();
+
+  assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
+}
+
+#[test]
 fn eval_let() {
   let source = "(let ((foo 12)
                             (bar (+ 4 3))

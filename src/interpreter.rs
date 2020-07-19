@@ -72,6 +72,12 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           }))
         },
 
+        Value::Symbol(symbol) if symbol == "quote" => {
+          let exp = Rc::new(list.cdr.clone().map(|cdr| cdr.car.clone()).unwrap());
+
+          Ok((*exp).clone())
+        },
+
         Value::Symbol(symbol) if symbol == "let" => {
           let let_env = Rc::new(RefCell::new(Env {
             parent: Some(env.clone()),
