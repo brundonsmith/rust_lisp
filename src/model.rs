@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::{fmt::{Debug, Display}, collections::HashMap};
-use std::{cell::{Ref, RefCell}, borrow::Borrow, cmp::Ordering};
+use std::{borrow::Borrow, cmp::Ordering, cell::RefCell};
 
 #[derive(Clone)]
 pub enum Value {
@@ -150,6 +150,8 @@ impl PartialEq for Value {
   }
 }
 
+impl Eq for Value {}
+
 
 impl PartialOrd for Value {
   fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
@@ -192,6 +194,17 @@ impl PartialOrd for Value {
       Value::List(_) => None,
       Value::TailCall(_) => None,
     }
+  }
+}
+
+impl Ord for Value {
+  fn cmp(&self, other: &Self) -> Ordering {
+      match self.partial_cmp(other) {
+        Some(ordering) => ordering,
+        None => {
+          format!("{:?}", self).cmp(&format!("{:?}", other))
+        }
+      }
   }
 }
 
