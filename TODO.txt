@@ -1,6 +1,5 @@
 MVP:
 - Continue adding basic functions/forms:
-  - defun
   - set
   - macros
   - timestamp
@@ -16,6 +15,7 @@ Other:
 - Rust macro for FFI
 - Macros
 - Optional arguments
+- Rest arguments
 - Use Nil instead of Option?
 - Just use cons cells for native function arguments?
 - Instead of vec_to_cons, make it possible to collect an iterator into a cons
