@@ -1,6 +1,6 @@
 
 use std::{rc::Rc, collections::HashMap};
-use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
+use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter, vec_refs_to_cons}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
 
 pub fn default_env() -> Env {
   let mut entries = HashMap::new();
@@ -149,6 +149,45 @@ pub fn default_env() -> Env {
           Value::List(cons) => match cons.into_iter().nth(index as usize) {
             Some(v) => v.clone(),
             None => Value::Nil
+          },
+          Value::Nil => Value::Nil,
+          _ => panic!("Argument validation didn't work properly"),
+        });
+      }));
+
+  entries.insert(
+    String::from("sort"),
+    Value::NativeFunc(
+      |_env, args| {
+        let list = require_list_parameter("sort", args, 0)?;
+
+        return Ok(match list {
+          Value::List(cons) => {
+            let mut v: Vec<&Value> = cons.into_iter().collect();
+
+            v.sort();
+
+            vec_refs_to_cons(&v)
+          },
+          Value::Nil => Value::Nil,
+          _ => panic!("Argument validation didn't work properly"),
+        });
+      }));
+    
+
+  entries.insert(
+    String::from("reverse"),
+    Value::NativeFunc(
+      |_env, args| {
+        let list = require_list_parameter("reverse", args, 0)?;
+
+        return Ok(match list {
+          Value::List(cons) => {
+            let mut v: Vec<&Value> = cons.into_iter().collect();
+
+            v.reverse();
+
+            vec_refs_to_cons(&v)
           },
           Value::Nil => Value::Nil,
           _ => panic!("Argument validation didn't work properly"),
