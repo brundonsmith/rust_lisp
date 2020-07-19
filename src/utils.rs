@@ -87,7 +87,7 @@ pub fn vec_refs_to_cons(vec: &Vec<&Value>) -> Value {
 
   for val in vec.iter().rev() {          
     cons = Some(ConsCell {
-      car: *val.clone(),
+      car: (*val).clone(),
       cdr: cons.map(|cons_cell| Rc::new(cons_cell)),
     });
   }
