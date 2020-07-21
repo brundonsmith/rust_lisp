@@ -25,7 +25,7 @@ impl ParseTree {
 
 // parsing
 fn tokenize(code: &str) -> Vec<String> {
-  let special_tokens = [ "(", ")", ";;", "'" ];
+  let special_tokens = [ "(", ")", ";;" ];
   let total_chars = code.chars().count();
 
   let mut tokens: Vec<String> = vec![];
