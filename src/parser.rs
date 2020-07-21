@@ -25,7 +25,7 @@ impl ParseTree {
 
 // parsing
 fn tokenize(code: &str) -> Vec<String> {
-  let special_tokens = [ "(", ")", ";;" ];
+  let special_tokens = [ "(", ")", ";;", "'" ];
   let total_chars = code.chars().count();
 
   let mut tokens: Vec<String> = vec![];
@@ -101,39 +101,45 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
   let mut parenths = 0;
 
   for token in tokens {
-    if *token == "(" {
-      parenths += 1;
+    match token.as_str() {
+      "(" => {
+        parenths += 1;
 
-      stack.push(ParseTree::List(vec![]));
-    } else if *token == ")" {
-      parenths -= 1;
-
-      if stack.len() == 0 {
-        return Err(ParseError {
-          msg: format!("Unexpected ')'")
-        });
-      } else {
-        let mut finished = stack.pop().unwrap();
-        let destination = stack.last_mut().unwrap();
-
-        // () is Nil
-        if let ParseTree::List(vec) = &finished {
-          if vec.len() == 0 {
-            finished = ParseTree::Atom(Value::Nil);
+        stack.push(ParseTree::List(vec![]));
+      },
+      ")" => {
+        parenths -= 1;
+  
+        if stack.len() == 0 {
+          return Err(ParseError {
+            msg: format!("Unexpected ')'")
+          });
+        } else {
+          let mut finished = stack.pop().unwrap();
+          let destination = stack.last_mut().unwrap();
+  
+          // () is Nil
+          if let ParseTree::List(vec) = &finished {
+            if vec.len() == 0 {
+              finished = ParseTree::Atom(Value::Nil);
+            }
           }
+  
+          match destination {
+            ParseTree::List(v) => v.push(finished),
+            _ => ()
+          };
         }
+      },
+      _ => {  // atom
+        let expr = ParseTree::Atom(read_atom(token));
 
-        match destination {
-          ParseTree::List(v) => v.push(finished),
+        match stack.last_mut().unwrap() {
+          ParseTree::List(vec) => vec.push(expr),
           _ => ()
         };
       }
-    } else {  // atom
-      match stack.last_mut().unwrap() {
-        ParseTree::List(vec) => vec.push(ParseTree::Atom(read_atom(token))),
-        _ => ()
-      };
-    }
+    };
   }
 
   if parenths > 0 {
