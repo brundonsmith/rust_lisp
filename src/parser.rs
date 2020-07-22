@@ -23,9 +23,10 @@ impl ParseTree {
 
 }
 
+const SPECIAL_TOKENS: [&str;3] = [ "(", ")", ";;" ];
+
 // parsing
 fn tokenize(code: &str) -> Vec<String> {
-  let special_tokens = [ "(", ")", ";;" ];
   let total_chars = code.chars().count();
 
   let mut tokens: Vec<String> = vec![];
@@ -33,8 +34,10 @@ fn tokenize(code: &str) -> Vec<String> {
   let mut current_atom = String::new();
   'charloop: while index < total_chars {
     
-    for token in special_tokens.iter() {
+    // match known tokens
+    for token in SPECIAL_TOKENS.iter() {
       let matched = code.chars().skip(index).zip(token.chars()).all(|(code_char, token_char)| code_char == token_char);
+
       if matched {
         if current_atom.len() > 0 {
           tokens.push(current_atom);
@@ -55,17 +58,18 @@ fn tokenize(code: &str) -> Vec<String> {
       }
     }
 
+    // if no exact token found
+    let mut remaining = code.chars().skip(index).peekable();
+    if remaining.peek().map_or(false, |c| *c == '"') { // string
+      let mut ch = remaining.next();
+      let mut new_str = ch.unwrap().to_string();
 
-    // if no exact tokens found
-    if code.chars().nth(index).map_or(false, |c| c == '"') { // string
       index += 1;
-
-      let mut new_str = String::from("\"");
-      let mut ch = code.chars().nth(index);
+      ch = remaining.next();
       while ch.map_or(false, |c| c != '"') {
         new_str.push(ch.unwrap());
         index += 1;
-        ch = code.chars().nth(index);
+        ch = remaining.next();
       }
 
       new_str.push_str("\"");
@@ -78,17 +82,17 @@ fn tokenize(code: &str) -> Vec<String> {
 
       tokens.push(new_str);
 
-    } else if code.chars().nth(index).map_or(false, |c| c.is_whitespace()) { // whitespace
+    } else if remaining.peek().map_or(false, |c| c.is_whitespace()) { // whitespace
       if current_atom.len() > 0 {
         tokens.push(current_atom);
         current_atom = String::new();
       }
 
-      while code.chars().nth(index).map_or(false, |c| c.is_whitespace()) {
+      while remaining.next().map_or(false, |c| c.is_whitespace()) {
         index += 1;
       }
     } else { // symbol
-      current_atom.push(code.chars().nth(index).unwrap());
+      current_atom.push(remaining.next().unwrap());
       index += 1;
     }
   }
@@ -134,10 +138,9 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
       _ => {  // atom
         let expr = ParseTree::Atom(read_atom(token));
 
-        match stack.last_mut().unwrap() {
-          ParseTree::List(vec) => vec.push(expr),
-          _ => ()
-        };
+        if let ParseTree::List(vec) = stack.last_mut().unwrap() {
+          vec.push(expr);
+        }
       }
     };
   }
