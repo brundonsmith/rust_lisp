@@ -82,7 +82,7 @@ entries.insert(
     }));
 ```
 
-In either case, a native function must take the following function signature:
+In either case, a native function must have the following function signature:
 ```rust
 type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 ```
