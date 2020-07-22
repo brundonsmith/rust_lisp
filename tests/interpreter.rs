@@ -1,5 +1,5 @@
 
-use std::{cell::RefCell, rc::Rc, time::SystemTime};
+use std::{cell::RefCell, rc::Rc};
 use rust_lisp::model::Value;
 use rust_lisp::parse;
 use rust_lisp::eval;
@@ -8,50 +8,35 @@ use rust_lisp::utils::vec_to_cons;
 
 #[test]
 fn eval_basic_expression() {
-  let source = "(+ (* 1 2) (/ 6 3))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+  let result = eval_str("(+ (* 1 2) (/ 6 3))");
 
   assert_eq!(result, Value::Int(4));
 }
 
 #[test]
 fn eval_quote_1() {
-  let source = "(quote \"stuff\")";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+  let result = eval_str("(quote \"stuff\")");
 
   assert_eq!(result, Value::String(String::from("stuff")));
 }
 
 #[test]
 fn eval_quote_2() {
-  let source = "(quote (1 2 3))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+  let result = eval_str("(quote (1 2 3))");
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
 }
 
 #[test]
 fn eval_let() {
-  let source = "(let ((foo 12)
-                            (bar (+ 4 3))
-                            (blah \"stuff\"))
-                        (print foo)
-                        (print bar)
-                        (print blah)
-                        (list (* foo bar) (+ blah \" also\")))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+  let result = eval_str("
+    (let ((foo 12)
+          (bar (+ 4 3))
+          (blah \"stuff\"))
+      (print foo)
+      (print bar)
+      (print blah)
+      (list (* foo bar) (+ blah \" also\")))");
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
 }
@@ -59,53 +44,44 @@ fn eval_let() {
 #[test]
 #[should_panic]
 fn eval_let_scope() {
-  let source = "(begin
-    (let ((foo 12)
-          (bar (+ 4 3))
-          (blah \"stuff\"))
-      (print foo)
-      (print bar)
-      (print blah))
+  let result = eval_str("
+    (begin
+      (let ((foo 12)
+            (bar (+ 4 3))
+            (blah \"stuff\"))
+        (print foo)
+        (print bar)
+        (print blah))
 
-    (* foo bar))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+      (* foo bar))");
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
 }
 
 #[test]
 fn eval_set_global() {
-  let source = "(begin
-    (define foo 12)
+  let result = eval_str("
+    (begin
+      (define foo 12)
 
-    (let ((bar 25))
-      (set foo 13))
+      (let ((bar 25))
+        (set foo 13))
 
-    foo)";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+      foo)");
 
   assert_eq!(result, Value::Int(13));
 }
 
 #[test]
 fn eval_set_local() {
-  let source = "(begin
-    (define foo 12)
+  let result = eval_str("
+    (begin
+      (define foo 12)
 
-    (let ((bar 25))
-      (set bar 13))
+      (let ((bar 25))
+        (set bar 13))
 
-    foo)";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+      foo)");
 
   assert_eq!(result, Value::Int(12));
 }
@@ -114,18 +90,15 @@ fn eval_set_local() {
 #[test]
 #[should_panic]
 fn eval_set_undefined() {
-  let source = "(begin
-    (let ((bar 25))
-      (set foo 13)))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  eval(env, &ast[0]).unwrap();
+  eval_str("
+    (begin
+      (let ((bar 25))
+        (set foo 13)))");
 }
 
 #[test]
 fn eval_fib() {
-  let source = "
+  let result = eval_str("
     (begin
       (define fib 
         (lambda (n)
@@ -134,18 +107,14 @@ fn eval_fib() {
             ((== n 1) 1)
             (#t (+ (fib (- n 1)) (fib (- n 2)) ))))) ;;another comment
 
-      (list (fib 0) (fib 1) (fib 2) (fib 3) (fib 4) (fib 5) (fib 6) (fib 7) (fib 8)))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+      (list (fib 0) (fib 1) (fib 2) (fib 3) (fib 4) (fib 5) (fib 6) (fib 7) (fib 8)))");
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(5), Value::Int(8), Value::Int(13), Value::Int(21) ]));
 }
 
 #[test]
 fn eval_fib_deep() {
-  let source = "
+  let result = eval_str("
     (begin
       (define fib-normal
         (lambda (n)
@@ -158,11 +127,8 @@ fn eval_fib_deep() {
             ((== n 1) 1)
             (#t (fib-normal n))))) ;;another comment
 
-      (fib 10))";
-  let ast = parse(source).unwrap();
+      (fib 10))");
 
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
   println!("result: {}", result);
 
   // assert_eq!(result, Value::Int(55));
@@ -170,7 +136,7 @@ fn eval_fib_deep() {
 
 #[test]
 fn eval_merge_sort() {
-  let source = "
+  let result = eval_str("
     (begin
       (defun list-head (lst n) 
           (if (== n 0) 
@@ -194,13 +160,15 @@ fn eval_merge_sort() {
             (merge (mergesort (list-head lst (truncate (length lst) 2)))
                   (mergesort (list-tail lst (truncate (length lst) 2))))))
 
-      (mergesort (list 7 2 5 0 1 5)))";
-  let ast = parse(source).unwrap();
-
-  let env = Rc::new(RefCell::new(default_env()));
-  let result = eval(env, &ast[0]).unwrap();
+      (mergesort (list 7 2 5 0 1 5)))");
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(2), Value::Int(5), Value::Int(5), Value::Int(7) ]));
+}
+
+fn eval_str(source: &str) -> Value {
+  let ast = parse(source).unwrap();
+  let env = Rc::new(RefCell::new(default_env()));
+  return eval(env, &ast[0]).unwrap();
 }
 
 // #[bench]
