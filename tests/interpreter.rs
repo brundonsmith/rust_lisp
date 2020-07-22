@@ -28,6 +28,20 @@ fn eval_quote_2() {
 }
 
 #[test]
+fn eval_quote_tick_list() {
+  let result = eval_str("'(1 2 3)");
+
+  assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
+}
+
+#[test]
+fn eval_quote_tick_atom() {
+  let result = eval_str("(nth 0 (list '12))");
+
+  assert_eq!(result, Value::Int(12));
+}
+
+#[test]
 fn eval_let() {
   let result = eval_str("
     (let ((foo 12)

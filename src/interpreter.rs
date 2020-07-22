@@ -1,6 +1,6 @@
 
 use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
-use std::{collections::HashMap, rc::Rc, cell::{Ref, RefCell}};
+use std::{collections::HashMap, rc::Rc, cell::{RefCell}};
 
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
   let mut result = None;

@@ -4,26 +4,41 @@ use crate::utils::vec_to_cons;
 
 #[derive(Debug,Clone)]
 enum ParseTree {
-  Atom(Value),
-  List(Vec<ParseTree>),
+  Atom{atom: Value, quoted: bool},
+  List{vec: Vec<ParseTree>, quoted: bool},
 }
 
 impl ParseTree {
 
   pub fn into_expression(self) -> Value {
     match self {
-      ParseTree::Atom(atom) => atom,
-      ParseTree::List(vec) => 
-        vec_to_cons(
-          &vec.into_iter()
-                .map(|parse_tree| parse_tree.into_expression())
-                .collect())
+      ParseTree::Atom{atom, quoted} => 
+        if quoted {
+          vec_to_cons(&vec![ Value::Symbol(String::from("quote")), atom ])
+        } else {
+          atom
+        },
+      ParseTree::List{vec, quoted} =>
+        if quoted {
+          vec_to_cons(&vec![ 
+            Value::Symbol(String::from("quote")), 
+            vec_to_cons(
+              &vec.into_iter()
+                    .map(|parse_tree| parse_tree.into_expression())
+                    .collect())
+          ])
+        } else {
+          vec_to_cons(
+            &vec.into_iter()
+                  .map(|parse_tree| parse_tree.into_expression())
+                  .collect())
+        }
     }
   }
 
 }
 
-const SPECIAL_TOKENS: [&str;3] = [ "(", ")", ";;" ];
+const SPECIAL_TOKENS: [&str;4] = [ "(", ")", ";;", "'" ];
 
 // parsing
 fn tokenize(code: &str) -> Vec<String> {
@@ -101,15 +116,17 @@ fn tokenize(code: &str) -> Vec<String> {
 }
 
 fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
-  let mut stack: Vec<ParseTree> = vec![ ParseTree::List(vec![]) ];
+  let mut stack: Vec<ParseTree> = vec![ ParseTree::List{vec: vec![], quoted: false} ];
   let mut parenths = 0;
+  let mut quote_next = false;
 
   for token in tokens {
     match token.as_str() {
       "(" => {
         parenths += 1;
 
-        stack.push(ParseTree::List(vec![]));
+        stack.push(ParseTree::List{vec: vec![], quoted: quote_next});
+        quote_next = false;
       },
       ")" => {
         parenths -= 1;
@@ -123,22 +140,25 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
           let destination = stack.last_mut().unwrap();
   
           // () is Nil
-          if let ParseTree::List(vec) = &finished {
+          if let ParseTree::List{vec, quoted} = &finished {
             if vec.len() == 0 {
-              finished = ParseTree::Atom(Value::Nil);
+              finished = ParseTree::Atom{ atom: Value::Nil, quoted: *quoted };
             }
           }
   
           match destination {
-            ParseTree::List(v) => v.push(finished),
+            ParseTree::List{vec, quoted: _} => vec.push(finished),
             _ => ()
           };
         }
       },
+      "'" => {
+        quote_next = true;
+      },
       _ => {  // atom
-        let expr = ParseTree::Atom(read_atom(token));
+        let expr = ParseTree::Atom{ atom: read_atom(token), quoted: false };
 
-        if let ParseTree::List(vec) = stack.last_mut().unwrap() {
+        if let ParseTree::List{vec, quoted: _} = stack.last_mut().unwrap() {
           vec.push(expr);
         }
       }
@@ -156,8 +176,8 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
   }
 
   let parse_trees = match stack.into_iter().last().unwrap() {
-    ParseTree::List(vec) => vec,
-    _ => vec![ ParseTree::Atom(Value::Nil) ]
+    ParseTree::List{vec, quoted: _} => vec,
+    _ => vec![ ParseTree::Atom{ atom: Value::Nil, quoted: false } ]
   };
 
   return Ok(parse_trees.into_iter().map(|t| t.into_expression()).collect());
