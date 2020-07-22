@@ -22,13 +22,13 @@ fn main() {
   let env = Rc::new(RefCell::new(default_env()));
 
   // parse into a syntax tree
-  let parse_result = parse("(+ \"Hello \" \"world!\")")?;
+  let parse_result = parse("(+ \"Hello \" \"world!\")").unwrap();
 
   // evaluate
-  let evaluation_result = eval(env.clone(), &expressions[0])?;
+  let evaluation_result = eval(env.clone(), &parse_result[0]).unwrap();
 
   // use result
-  println!("{}", val);
+  println!("{}", &evaluation_result);
 }
 ```
 
