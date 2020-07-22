@@ -156,7 +156,8 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
         quote_next = true;
       },
       _ => {  // atom
-        let expr = ParseTree::Atom{ atom: read_atom(token), quoted: false };
+        let expr = ParseTree::Atom{ atom: read_atom(token), quoted: quote_next };
+        quote_next = false;
 
         if let ParseTree::List{vec, quoted: _} = stack.last_mut().unwrap() {
           vec.push(expr);

@@ -42,6 +42,13 @@ fn eval_quote_tick_atom() {
 }
 
 #[test]
+fn eval_quote_tick_symbol() {
+  let result = eval_str("(nth 0 (list 'foo))");
+
+  assert_eq!(result, Value::Symbol(String::from("foo")));
+}
+
+#[test]
 fn eval_let() {
   let result = eval_str("
     (let ((foo 12)
