@@ -2,6 +2,9 @@
 use std::{rc::Rc, collections::HashMap};
 use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter, vec_refs_to_cons}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
 
+/// Initialize an instance of `Env` with several core Lisp functions implemented
+/// in Rust. **Without this, you will only have access to the functions you 
+/// implement yourself.**
 pub fn default_env() -> Env {
   let mut entries = HashMap::new();
 

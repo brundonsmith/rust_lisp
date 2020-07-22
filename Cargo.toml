@@ -11,6 +11,8 @@ edition = "2018"
 [lib]
 name = "rust_lisp"
 path = "src/lib.rs"
+test = true
+doc = true
 
 [[bin]]
 name = "rust_lisp"
