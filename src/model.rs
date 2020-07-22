@@ -2,6 +2,8 @@ use std::rc::Rc;
 use std::{fmt::{Debug, Display}, collections::HashMap};
 use std::{borrow::Borrow, cmp::Ordering, cell::RefCell};
 
+/// `Value` encompasses all possible Lisp values, including atoms, lists, and 
+/// others.
 #[derive(Clone)]
 pub enum Value {
   Nil,
@@ -208,6 +210,9 @@ impl Ord for Value {
   }
 }
 
+/// A `ConsCell` is effectively a linked-list node, where the value in each node
+/// is a lisp `Value`. To be used as a true "list", the ConsCell must be wrapped
+/// in Value::List().
 #[derive(Debug,PartialEq)]
 pub struct ConsCell {
   pub car: Value,
@@ -268,9 +273,10 @@ impl<'a> ExactSizeIterator for ConsIterator<'a> {
   }
 }
 
+/// A Lisp function defined in Lisp.
 #[derive(Debug,Clone)]
 pub struct Lambda {
-  pub env: Rc<RefCell<Env>>,
+  pub closure: Rc<RefCell<Env>>,
   pub argnames: Rc<Value>,
   pub body: Rc<Value>
 }
@@ -289,7 +295,8 @@ pub struct RuntimeError {
 }
 
 
-
+/// An environment of symbol bindings. Used for the base environment, for 
+/// closures, for `let` statements, for function arguments, etc.
 #[derive(Debug)]
 pub struct Env {
   pub parent: Option<Rc<RefCell<Env>>>,
@@ -297,6 +304,9 @@ pub struct Env {
 }
 
 impl Env {
+
+  /// Walks up the environment hierarchy until it finds the symbol's value or
+  /// runs out of environments.
   pub fn find(&self, symbol: &str) -> Option<Value> {
     if self.entries.contains_key(symbol) {
       return self.entries.get(symbol).map(|v| v.clone()); // clone the Rc

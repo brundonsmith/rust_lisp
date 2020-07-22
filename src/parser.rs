@@ -2,6 +2,8 @@
 use crate::model::{Value};
 use crate::utils::vec_to_cons;
 
+// A slightly more convenient data structure for building the parse tree, before
+// eventually converting it into proper s-expressions.
 #[derive(Debug,Clone)]
 enum ParseTree {
   Atom{atom: Value, quoted: bool},
@@ -40,7 +42,7 @@ impl ParseTree {
 
 const SPECIAL_TOKENS: [&str;4] = [ "(", ")", ";;", "'" ];
 
-// parsing
+// Tokenize Lisp code
 fn tokenize(code: &str) -> Vec<String> {
   let total_chars = code.chars().count();
 
@@ -115,6 +117,9 @@ fn tokenize(code: &str) -> Vec<String> {
   return tokens;
 }
 
+// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
+// are more than one when the base string has more than one independent 
+// parenthesized lists at its root.
 fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List{vec: vec![], quoted: false} ];
   let mut parenths = 0;
@@ -218,6 +223,9 @@ fn read_atom(token: &str) -> Value {
   return Value::Symbol(String::from(token));
 }
 
+/// Parse a string of Lisp code into a series of s-expressions. There
+/// are more than one expressions when the base string has more than one 
+/// independent parenthesized lists at its root.
 pub fn parse(code: &str) -> Result<Vec<Value>,ParseError> {
   read(&tokenize(code))
 }

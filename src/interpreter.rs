@@ -2,6 +2,9 @@
 use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
 use std::{collections::HashMap, rc::Rc, cell::{RefCell}};
 
+// Treat the given expression as a cons list of expressions (a function body, 
+// for example). Each expression is evaluated in order and the final one's 
+// retur value is returned.
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
   let mut result = None;
 
@@ -12,6 +15,7 @@ fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeEr
   return result.unwrap_or(Ok(Value::Nil));
 }
 
+/// Evaluate a given Lisp expression in the context of a given environment.
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeError> {
   // println!("eval {}", &expression);
   // println!("{}", &env.borrow());
@@ -72,7 +76,7 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let body = Rc::new(vec_to_cons(&list_iter.map(|v| v.clone()).collect()));
 
           let lambda = Value::Lambda(Lambda {
-            env: env.clone(),
+            closure: env.clone(),
             argnames,
             body
           });
@@ -91,7 +95,7 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           // println!("{}", &body);
 
           Ok(Value::Lambda(Lambda {
-            env: env.clone(),
+            closure: env.clone(),
             argnames,
             body
           }))
