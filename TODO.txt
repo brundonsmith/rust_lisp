@@ -1,6 +1,5 @@
 MVP:
 - Continue adding basic functions/forms:
-  - set
   - macros
   - timestamp
 - backtick shortcut
