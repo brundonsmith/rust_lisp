@@ -8,6 +8,10 @@ edition = "2018"
 
 [dependencies]
 
+[lib]
+name = "rust_lisp"
+path = "src/lib.rs"
+
 [[bin]]
 name = "rust_lisp"
 path = "src/main.rs"
