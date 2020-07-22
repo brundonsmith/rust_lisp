@@ -5,13 +5,13 @@ mod interpreter;
 mod utils;
 mod model;
 
-use parser::parse;
-use default_environment::default_env;
-use interpreter::eval;
 use std::{cell::RefCell, rc::Rc, io};
 use std::io::Write;
 
+use rust_lisp::{default_env, parse, eval};
+
 fn main() {
+  // create a base environment
   let env = Rc::new(RefCell::new(default_env()));
 
   let mut buf = String::new();

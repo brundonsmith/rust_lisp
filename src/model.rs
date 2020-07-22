@@ -281,7 +281,7 @@ impl PartialEq for Lambda {
   }
 }
 
-type NativeFunc = fn(Rc<RefCell<Env>>, &Vec<Value>) -> Result<Value, RuntimeError>;
+type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeError {
