@@ -1,6 +1,6 @@
 
 use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
-use std::{collections::HashMap, rc::Rc, cell::RefCell};
+use std::{collections::HashMap, rc::Rc, cell::{Ref, RefCell}};
 
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
   let mut result = None;
@@ -35,6 +35,31 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let value = eval(env.clone(), &value_expr)?;
 
           env.borrow_mut().entries.insert(symbol, value.clone());
+
+          Ok(value)
+        },
+
+        Value::Symbol(symbol) if symbol == "set" => {
+          let symbol = list.cdr.clone().map(|cdr| cdr.car.as_symbol()).unwrap().unwrap();
+          let value_expr = list.cdr.clone().unwrap().cdr.clone().unwrap().car.clone();
+          let value = eval(env.clone(), &value_expr)?;
+
+          if env.borrow().entries.contains_key(&symbol) {
+            env.borrow_mut().entries.insert(symbol, value.clone());
+          } else {
+            let mut focal_env: Option<Rc<RefCell<Env>>> = env.borrow().parent.clone();
+  
+            while focal_env.is_some() && !focal_env.clone().unwrap().borrow().entries.contains_key(&symbol) {
+              let rc = focal_env.clone().unwrap();
+              focal_env = rc.borrow().parent.clone();
+            }
+
+            if let Some(env) = focal_env.clone() {
+              env.borrow_mut().entries.insert(symbol, value.clone());
+            } else {
+              return Err(RuntimeError { msg: format!("Tried to set value of undefined symbol \"{}\"", symbol) });
+            }
+          }
 
           Ok(value)
         },

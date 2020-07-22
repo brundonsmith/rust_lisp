@@ -77,6 +77,53 @@ fn eval_let_scope() {
 }
 
 #[test]
+fn eval_set_global() {
+  let source = "(begin
+    (define foo 12)
+
+    (let ((bar 25))
+      (set foo 13))
+
+    foo)";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast[0]).unwrap();
+
+  assert_eq!(result, Value::Int(13));
+}
+
+#[test]
+fn eval_set_local() {
+  let source = "(begin
+    (define foo 12)
+
+    (let ((bar 25))
+      (set bar 13))
+
+    foo)";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  let result = eval(env, &ast[0]).unwrap();
+
+  assert_eq!(result, Value::Int(12));
+}
+
+
+#[test]
+#[should_panic]
+fn eval_set_undefined() {
+  let source = "(begin
+    (let ((bar 25))
+      (set foo 13)))";
+  let ast = parse(source).unwrap();
+
+  let env = Rc::new(RefCell::new(default_env()));
+  eval(env, &ast[0]).unwrap();
+}
+
+#[test]
 fn eval_fib() {
   let source = "
     (begin
