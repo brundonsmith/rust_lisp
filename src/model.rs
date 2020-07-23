@@ -25,9 +25,9 @@ impl Value {
     match self {
       Value::NativeFunc(_) => "function",
       Value::Lambda(_) => "function",
-      Value::Nil => "()",
-      Value::True => "#t",
-      Value::False => "#f",
+      Value::Nil => "NIL",
+      Value::True => "T",
+      Value::False => "F",
       Value::String(_) => "string",
       Value::List(_) => "list",
       Value::Int(_) => "integer",

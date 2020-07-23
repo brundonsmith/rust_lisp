@@ -126,7 +126,7 @@ fn eval_fib() {
           (cond           ;; some comment
             ((== n 0) 0)
             ((== n 1) 1)
-            (#t (+ (fib (- n 1)) (fib (- n 2)) ))))) ;;another comment
+            (T (+ (fib (- n 1)) (fib (- n 2)) ))))) ;;another comment
 
       (list (fib 0) (fib 1) (fib 2) (fib 3) (fib 4) (fib 5) (fib 6) (fib 7) (fib 8)))");
 
@@ -146,7 +146,7 @@ fn eval_fib_deep() {
           (cond           ;; some comment
             ((== n 0) 0)
             ((== n 1) 1)
-            (#t (fib-normal n))))) ;;another comment
+            (T (fib-normal n))))) ;;another comment
 
       (fib 10))");
 
@@ -173,7 +173,7 @@ fn eval_merge_sort() {
           (cond ((not lst-a) lst-b)
                 ((not lst-b) lst-a)
                 ((< (car lst-a) (car lst-b)) (cons (car lst-a) (merge (cdr lst-a) lst-b)))
-                (#t (cons (car lst-b) (merge lst-a (cdr lst-b))))))
+                (T (cons (car lst-b) (merge lst-a (cdr lst-b))))))
 
       (defun mergesort (lst)
           (if (== (length lst) 1)
@@ -223,7 +223,7 @@ fn eval_str(source: &str) -> Value {
 //           (cond ((not lst-a) lst-b)
 //                 ((not lst-b) lst-a)
 //                 ((< (car lst-a) (car lst-b)) (cons (car lst-a) (merge (cdr lst-a) lst-b)))
-//                 (#t (cons (car lst-b) (merge lst-a (cdr lst-b)))))))
+//                 (T (cons (car lst-b) (merge lst-a (cdr lst-b)))))))
 
 //       (define 
 //         mergesort 

@@ -193,11 +193,11 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
 fn read_atom(token: &str) -> Value {
   let token_lowercase = token.to_lowercase();
 
-  if token_lowercase == "#t" {
+  if token_lowercase == "t" {
     return Value::True;
   }
 
-  if token_lowercase == "#f" {
+  if token_lowercase == "f" {
     return Value::False;
   }
 
