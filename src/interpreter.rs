@@ -17,9 +17,7 @@ fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeEr
 
 /// Evaluate a given Lisp expression in the context of a given environment.
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeError> {
-  // println!("eval {}", &expression);
-  // println!("{}", &env.borrow());
-
+  
   let result: Result<Value,RuntimeError> = match expression {
 
     // look up symbol
@@ -34,9 +32,10 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
 
         // special forms
         Value::Symbol(symbol) if symbol == "define" => {
-          let symbol = list.cdr.clone().map(|cdr| cdr.car.as_symbol()).unwrap().unwrap();
-          let value_expr = list.cdr.clone().unwrap().cdr.clone().unwrap().car.clone();
-          let value = eval(env.clone(), &value_expr)?;
+          let cdr = list.cdr.clone().unwrap();
+          let symbol = cdr.car.as_symbol().unwrap();
+          let value_expr = &cdr.cdr.clone().unwrap().car;
+          let value = eval(env.clone(), value_expr)?;
 
           env.borrow_mut().entries.insert(symbol, value.clone());
 
@@ -44,21 +43,22 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         },
 
         Value::Symbol(symbol) if symbol == "set" => {
-          let symbol = list.cdr.clone().map(|cdr| cdr.car.as_symbol()).unwrap().unwrap();
-          let value_expr = list.cdr.clone().unwrap().cdr.clone().unwrap().car.clone();
-          let value = eval(env.clone(), &value_expr)?;
+          let cdr = list.cdr.clone().unwrap();
+          let symbol = cdr.car.as_symbol().unwrap();
+          let value_expr = &cdr.cdr.clone().unwrap().car;
+          let value = eval(env.clone(), value_expr)?;
 
           if env.borrow().entries.contains_key(&symbol) {
             env.borrow_mut().entries.insert(symbol, value.clone());
           } else {
             let mut focal_env: Option<Rc<RefCell<Env>>> = env.borrow().parent.clone();
   
-            while focal_env.is_some() && !focal_env.clone().unwrap().borrow().entries.contains_key(&symbol) {
-              let rc = focal_env.clone().unwrap();
+            while focal_env.as_ref().map_or(false, |e| !e.borrow().entries.contains_key(&symbol)) {
+              let rc = focal_env.unwrap();
               focal_env = rc.borrow().parent.clone();
             }
 
-            if let Some(env) = focal_env.clone() {
+            if let Some(env) = focal_env {
               env.borrow_mut().entries.insert(symbol, value.clone());
             } else {
               return Err(RuntimeError { msg: format!("Tried to set value of undefined symbol \"{}\"", symbol) });
@@ -87,12 +87,9 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         },
 
         Value::Symbol(symbol) if symbol == "lambda" => {
-          // println!("{}", &list);
-          let argnames = Rc::new(list.cdr.clone().map(|cdr| cdr.car.clone()).unwrap());
-          // println!("{}", &argnames);
-
-          let body = Rc::new(list.cdr.clone().map(|cdr| cdr.cdr.clone().map(|body| Value::List(body))).unwrap().unwrap());
-          // println!("{}", &body);
+          let cdr = list.cdr.as_ref().unwrap();
+          let argnames = Rc::new(cdr.car.clone());
+          let body = Rc::new(Value::List(cdr.cdr.clone().unwrap()));
 
           Ok(Value::Lambda(Lambda {
             closure: env.clone(),
@@ -102,9 +99,9 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         },
 
         Value::Symbol(symbol) if symbol == "quote" => {
-          let exp = Rc::new(list.cdr.clone().map(|cdr| cdr.car.clone()).unwrap());
+          let exp = list.cdr.as_ref().unwrap().car.clone();
 
-          Ok((*exp).clone())
+          Ok(exp)
         },
 
         Value::Symbol(symbol) if symbol == "let" => {
@@ -112,19 +109,18 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
             parent: Some(env.clone()),
             entries: HashMap::new()
           }));
-          let declarations = list.cdr.clone().map(|c| c.car.clone()).unwrap();
+          let declarations = list.cdr.as_ref().map(|c| &c.car).unwrap();
 
           for decl in declarations.as_list().unwrap().into_iter() {
             let decl_cons = decl.as_list().unwrap();
-            let mut decl_iter = decl_cons.into_iter();
-            let symbol = decl_iter.next().unwrap().as_symbol().unwrap();
-            let expr = decl_iter.next().unwrap();
+            let symbol = decl_cons.car.as_symbol().unwrap();
+            let expr = &decl_cons.cdr.as_ref().unwrap().car;
 
             let result = eval(let_env.clone(), &expr)?;
             let_env.borrow_mut().entries.insert(symbol, result);
           }
 
-          let body = Value::List(list.cdr.clone().unwrap().cdr.clone().unwrap());
+          let body = Value::List(list.cdr.as_ref().unwrap().cdr.clone().unwrap());
 
           evaluate_block(let_env.clone(), &body)
         },
@@ -153,11 +149,10 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         },
 
         Value::Symbol(symbol) if symbol == "if" => {
-          let remaining = list.cdr.clone().unwrap();
-          let mut list_iter = remaining.into_iter();
-          let condition = list_iter.next().unwrap();
-          let then_result = list_iter.next().unwrap();
-          let else_result = list_iter.next();
+          let cdr = list.cdr.as_ref().unwrap();
+          let condition = &cdr.as_ref().car;
+          let then_result = &cdr.as_ref().cdr.as_ref().unwrap().car;
+          let else_result = cdr.as_ref().cdr.as_ref().unwrap().cdr.as_ref().map(|c| &c.car);
 
           if eval(env.clone(), condition)?.is_truthy() {
             Ok(eval(env.clone(), then_result)?)
@@ -170,10 +165,9 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         },
 
         Value::Symbol(symbol) if symbol == "and" => {
-          let remaining = list.cdr.clone().unwrap();
-          let mut list_iter = remaining.into_iter();
-          let a = list_iter.next().unwrap();
-          let b = list_iter.next().unwrap();
+          let cdr = list.cdr.as_ref().unwrap();
+          let a = &cdr.car;
+          let b = &cdr.cdr.as_ref().unwrap().car;
 
           Ok(Value::from_truth(
               eval(env.clone(), a)?.is_truthy() 
@@ -182,10 +176,9 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         },
 
         Value::Symbol(symbol) if symbol == "or" => {
-          let remaining = list.cdr.clone().unwrap();
-          let mut list_iter = remaining.into_iter();
-          let a = list_iter.next().unwrap();
-          let b = list_iter.next().unwrap();
+          let cdr = list.cdr.as_ref().unwrap();
+          let a = &cdr.car;
+          let b = &cdr.cdr.as_ref().unwrap().car;
 
           Ok(Value::from_truth(
               eval(env.clone(), a)?.is_truthy() 
@@ -198,7 +191,6 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
         // function call
         _ => {
           let func = eval(env.clone(), &list.car)?;
-          // println!("{}", &list);
           let args = list.into_iter().skip(1)
             .map(|car| eval(env.clone(), car).map_err(|e| e.clone()));
 
@@ -208,9 +200,9 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           //     cdr: Some(vec_to_cons(&args.collect()).as_list().unwrap())
           //   }))));
           //   println!("tail-calling: {}", &expr);
-
           //   Ok(expr)
           // } else {
+
           match func {
 
             // call native function
