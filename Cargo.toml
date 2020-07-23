@@ -5,7 +5,8 @@ version = "0.1.0"
 authors = ["Brandon Smith"]
 repository = "https://github.com/brundonsmith/rust_lisp"
 edition = "2018"
-
+exclude = [".github", ".vscode"]
+license = "MIT"
 
 [lib]
 name = "rust_lisp"
