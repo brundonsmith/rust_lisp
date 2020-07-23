@@ -12,6 +12,11 @@ library in a larger application for scripting purposes. Goals:
 # Basic Usage
 
 ```rust
+[dependencies]
+rust_lisp = "0.1.0"
+```
+
+```rust
 use std::{cell::RefCell, rc::Rc};
 
 use rust_lisp::{parse,eval,default_env};
