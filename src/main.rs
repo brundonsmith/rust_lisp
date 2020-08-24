@@ -1,4 +1,6 @@
 
+#![allow(dead_code)]
+
 mod parser;
 mod default_environment;
 mod interpreter;
