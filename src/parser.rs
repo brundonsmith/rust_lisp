@@ -43,7 +43,7 @@ impl ParseTree {
 const SPECIAL_TOKENS: [&str;4] = [ "(", ")", ";;", "'" ];
 
 // Tokenize Lisp code
-fn tokenize(code: &str) -> Vec<String> {
+fn tokenize(code: &str) -> impl Iterator<Item=String> {
   let total_chars = code.chars().count();
 
   let mut tokens: Vec<String> = vec![];
@@ -114,13 +114,13 @@ fn tokenize(code: &str) -> Vec<String> {
     }
   }
 
-  return tokens;
+  return tokens.into_iter();
 }
 
 // Parse tokens (created by `tokenize()`) into a series of s-expressions. There
 // are more than one when the base string has more than one independent 
 // parenthesized lists at its root.
-fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
+fn read(tokens: impl Iterator<Item=String>) -> Result<Vec<Value>,ParseError> {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List{vec: vec![], quoted: false} ];
   let mut parenths = 0;
   let mut quote_next = false;
@@ -161,7 +161,7 @@ fn read(tokens: &Vec<String>) -> Result<Vec<Value>,ParseError> {
         quote_next = true;
       },
       _ => {  // atom
-        let expr = ParseTree::Atom{ atom: read_atom(token), quoted: quote_next };
+        let expr = ParseTree::Atom{ atom: read_atom(&token), quoted: quote_next };
         quote_next = false;
 
         if let ParseTree::List{vec, quoted: _} = stack.last_mut().unwrap() {
@@ -227,7 +227,7 @@ fn read_atom(token: &str) -> Value {
 /// are more than one expressions when the base string has more than one 
 /// independent parenthesized lists at its root.
 pub fn parse(code: &str) -> Result<Vec<Value>,ParseError> {
-  read(&tokenize(code))
+  read(tokenize(code))
 }
 
 #[derive(Debug)]
