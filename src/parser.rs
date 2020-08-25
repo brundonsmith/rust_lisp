@@ -40,7 +40,7 @@ impl ParseTree {
 
 }
 
-const SPECIAL_TOKENS: [&str;3] = [ "(", ")", "'" ];
+
 
 // Tokenize Lisp code
 fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
@@ -120,8 +120,22 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
     })
 }
 
+const SPECIAL_TOKENS: [&str;3] = [ "(", ")", "'" ];
+
 fn is_symbol(c: char) -> bool {
   !c.is_numeric() && !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| t.chars().any(|other| other == c))
+}
+
+fn match_front(code: &str, segment: &str) -> bool {
+  segment.chars().zip(code.chars()).all(|(a, b)| a == b)
+}
+
+fn match_pred<F: Fn(char) -> bool>(code: &str, pred: F) -> Option<usize> {
+  code
+    .char_indices()
+    .take_while(|(_, c)| pred(*c))
+    .last()
+    .map(|(i, _)| i)
 }
 
 #[test]
@@ -183,17 +197,6 @@ fn tokenize_complex_expression() {
 }
 
 
-fn match_front(code: &str, segment: &str) -> bool {
-  segment.chars().zip(code.chars()).all(|(a, b)| a == b)
-}
-
-fn match_pred<F: Fn(char) -> bool>(code: &str, pred: F) -> Option<usize> {
-  code
-    .char_indices()
-    .take_while(|(_, c)| pred(*c))
-    .last()
-    .map(|(i, _)| i)
-}
 
 // Parse tokens (created by `tokenize()`) into a series of s-expressions. There
 // are more than one when the base string has more than one independent 
