@@ -40,93 +40,171 @@ impl ParseTree {
 
 }
 
-const SPECIAL_TOKENS: [&str;4] = [ "(", ")", ";;", "'" ];
+const SPECIAL_TOKENS: [&str;3] = [ "(", ")", "'" ];
 
 // Tokenize Lisp code
-fn tokenize(code: &str) -> impl Iterator<Item=String> {
-  let total_chars = code.chars().count();
+fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
+  let mut skip_to: Option<usize> = None;
 
-  let mut tokens: Vec<String> = vec![];
-  let mut index = 0;
-  let mut current_atom = String::new();
-  'charloop: while index < total_chars {
-    
-    // match known tokens
-    for token in SPECIAL_TOKENS.iter() {
-      let matched = code.chars().skip(index).zip(token.chars()).all(|(code_char, token_char)| code_char == token_char);
+  code.char_indices()
+    .filter_map(move |(index, ch)| {
+      if skip_to.map(|destination| destination > index).unwrap_or(false) {
+        return None;
+      } else {
+        skip_to = None;
+      }
 
-      if matched {
-        if current_atom.len() > 0 {
-          tokens.push(current_atom);
-          current_atom = String::new();
+      // whitespace
+      if ch.is_whitespace() {
+        return None;
+      }
+
+      // special tokens
+      for special in &SPECIAL_TOKENS {
+        if match_front(&code[index..], special) {
+          skip_to = Some(index + special.len());
+          return Some(*special);
         }
+      }
 
-        index += token.chars().count();
+      // strings
+      if ch == '"' {
+        let match_end = match_pred(&code[index+1..], |c| c != '"');
 
-        if *token == ";;" {
-          while code.chars().nth(index).map_or(false, |c| c != '\n') {
-            index += 1;
-          }
+        if let Some(contents_end_index) = match_end {
+          let string_end_index = index + contents_end_index + 3;
+
+          skip_to = Some(string_end_index);
+          return Some(&code[index..string_end_index]);
+        }
+      }
+
+      // comments
+      if ch == ';' && code[index+1..].chars().next().map_or(false, |c| c == ';') {
+        println!("Found comment at {}", index);
+        let comment_end = index + 2 + match_pred(&code[index+2..], |c| c != '\n').unwrap_or(0);
+        println!("comment_end: {}", comment_end);
+
+        skip_to = Some(comment_end + 1);
+        return None;
+      }
+
+      // numbers
+      if ch.is_numeric() {
+        let front_end = index + match_pred(&code[index..], |c| c.is_numeric()).unwrap() + 1;
+
+        if &code[front_end..front_end+1] == "." {
+          let back_end = front_end + 1 + match_pred(&code[front_end + 1..], |c| c.is_numeric()).unwrap() + 1;
+
+          skip_to = Some(back_end);
+          return Some(&code[index..back_end]);
         } else {
-          tokens.push(String::from(*token));
+          skip_to = Some(front_end);
+          return Some(&code[index..front_end])
         }
-
-        continue 'charloop;
-      }
-    }
-
-    // if no exact token found
-    let mut remaining = code.chars().skip(index).peekable();
-    if remaining.peek().map_or(false, |c| *c == '"') { // string
-      let mut ch = remaining.next();
-      let mut new_str = ch.unwrap().to_string();
-
-      index += 1;
-      ch = remaining.next();
-      while ch.map_or(false, |c| c != '"') {
-        new_str.push(ch.unwrap());
-        index += 1;
-        ch = remaining.next();
       }
 
-      new_str.push_str("\"");
-      index += 1;
+      // symbols
+      if is_symbol(ch) {
+        let match_end = match_pred(&code[index..], is_symbol);
 
-      if current_atom.len() > 0 {
-        tokens.push(current_atom);
-        current_atom = String::new();
+        if let Some(symbol_last) = match_end {
+          let symbol_end = index + symbol_last + 1;
+
+          skip_to = Some(symbol_end);
+          return Some(&code[index..symbol_end]);
+        }
       }
 
-      tokens.push(new_str);
+      return None;
+    })
+}
 
-    } else if remaining.peek().map_or(false, |c| c.is_whitespace()) { // whitespace
-      if current_atom.len() > 0 {
-        tokens.push(current_atom);
-        current_atom = String::new();
-      }
+fn is_symbol(c: char) -> bool {
+  !c.is_numeric() && !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| t.chars().any(|other| other == c))
+}
 
-      while remaining.next().map_or(false, |c| c.is_whitespace()) {
-        index += 1;
-      }
-    } else { // symbol
-      current_atom.push(remaining.next().unwrap());
-      index += 1;
-    }
-  }
+#[test]
+fn tokenize_simplest() {
+  let source = "
+  (1 2 3)";
+  let tokens: Vec<&str> = tokenize(source).collect();
 
-  return tokens.into_iter();
+  println!("{:?}", tokens);
+
+  assert_eq!(tokens, vec![ 
+    "(", "1", "2", "3", ")" ]);
+}
+
+#[test]
+fn tokenize_basic_expression() {
+  let source = "
+  (list 
+    (* 1 2)  ;; a comment
+    (/ 6 3 \"foo\"))";
+  let tokens: Vec<&str> = tokenize(source).collect();
+
+  assert_eq!(tokens, vec![ 
+    "(", "list", 
+      "(", "*", "1", "2", ")",
+      "(", "/", "6", "3", "\"foo\"", ")", ")" ]);
+}
+
+#[test]
+fn tokenize_complex_expression() {
+  let source = "
+  (begin
+    (define fib-normal
+      (lambda (n)
+        (+ (fib (- n 1)) (fib (- n 2)) )))
+
+    (define fib 
+      (lambda (n)
+        (cond           ;; some comment
+          ((== n 0) 0)
+          ((== n 1) 1)
+          (T (fib-normal n))))) ;;another comment";
+
+  let tokens: Vec<&str> = tokenize(source).collect();
+  println!("{:?}", tokens);
+
+  assert_eq!(tokens, vec![
+    "(", "begin", 
+      "(", "define", "fib-normal", 
+        "(", "lambda", "(", "n", ")", 
+          "(", "+", "(", "fib", "(", "-", "n", "1", ")", ")", "(", "fib", "(", "-", "n", "2", ")", ")", ")", ")", ")", 
+
+    "(", "define", "fib", 
+      "(", "lambda", "(", "n", ")", 
+        "(", "cond",
+          "(", "(", "==", "n", "0", ")", "0", ")", 
+          "(", "(", "==", "n", "1", ")", "1", ")", 
+          "(", "T", "(", "fib-normal", "n", ")", ")", ")", ")", ")"]);
+}
+
+
+fn match_front(code: &str, segment: &str) -> bool {
+  segment.chars().zip(code.chars()).all(|(a, b)| a == b)
+}
+
+fn match_pred<F: Fn(char) -> bool>(code: &str, pred: F) -> Option<usize> {
+  code
+    .char_indices()
+    .take_while(|(_, c)| pred(*c))
+    .last()
+    .map(|(i, _)| i)
 }
 
 // Parse tokens (created by `tokenize()`) into a series of s-expressions. There
 // are more than one when the base string has more than one independent 
 // parenthesized lists at its root.
-fn read(tokens: impl Iterator<Item=String>) -> Result<Vec<Value>,ParseError> {
+fn read<'a>(tokens: impl Iterator<Item=&'a str>) -> Result<Vec<Value>,ParseError> {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List{vec: vec![], quoted: false} ];
   let mut parenths = 0;
   let mut quote_next = false;
 
   for token in tokens {
-    match token.as_str() {
+    match token {
       "(" => {
         parenths += 1;
 
