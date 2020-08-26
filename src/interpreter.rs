@@ -2,9 +2,9 @@
 use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
 use std::{collections::HashMap, rc::Rc, cell::{RefCell}};
 
-// Treat the given expression as a cons list of expressions (a function body, 
-// for example). Each expression is evaluated in order and the final one's 
-// retur value is returned.
+/// Treat the given expression as a cons list of expressions (a function body, 
+/// for example). Each expression is evaluated in order and the final one's 
+/// return value is returned.
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
   let mut result = None;
 

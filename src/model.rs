@@ -294,6 +294,11 @@ pub struct RuntimeError {
   pub msg: String,
 }
 
+impl Display for RuntimeError {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    return write!(formatter, "Runtime error: {}", self.msg);
+  }
+}
 
 /// An environment of symbol bindings. Used for the base environment, for 
 /// closures, for `let` statements, for function arguments, etc.

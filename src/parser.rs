@@ -1,9 +1,10 @@
 
 use crate::model::{Value};
 use crate::utils::vec_to_cons;
+use std::fmt::Display;
 
-// A slightly more convenient data structure for building the parse tree, before
-// eventually converting it into proper s-expressions.
+/// A slightly more convenient data structure for building the parse tree, before
+/// eventually converting it into proper s-expressions.
 #[derive(Debug,Clone)]
 enum ParseTree {
   Atom{atom: Value, quoted: bool},
@@ -42,7 +43,7 @@ impl ParseTree {
 
 
 
-// Tokenize Lisp code
+/// Tokenize Lisp code
 fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
   let mut skip_to: Option<usize> = None;
 
@@ -198,9 +199,9 @@ fn tokenize_complex_expression() {
 
 
 
-// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
-// are more than one when the base string has more than one independent 
-// parenthesized lists at its root.
+/// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
+/// are more than one when the base string has more than one independent 
+/// parenthesized lists at its root.
 fn read<'a>(tokens: impl Iterator<Item=&'a str>) -> Result<Vec<Value>,ParseError> {
   let mut stack: Vec<ParseTree> = vec![ ParseTree::List{vec: vec![], quoted: false} ];
   let mut parenths = 0;
@@ -315,4 +316,10 @@ pub fn parse(code: &str) -> Result<Vec<Value>,ParseError> {
 pub struct ParseError {
   pub msg: String,
   // pub line: i32,
+}
+
+impl Display for ParseError {
+  fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    return write!(formatter, "Parse error: {}", self.msg);
+  }
 }
