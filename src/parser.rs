@@ -82,9 +82,7 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
 
       // comments
       if ch == ';' && code[index+1..].chars().next().map_or(false, |c| c == ';') {
-        println!("Found comment at {}", index);
         let comment_end = index + 2 + match_pred(&code[index+2..], |c| c != '\n').unwrap_or(0);
-        println!("comment_end: {}", comment_end);
 
         skip_to = Some(comment_end + 1);
         return None;
@@ -145,8 +143,6 @@ fn tokenize_simplest() {
   (1 2 3)";
   let tokens: Vec<&str> = tokenize(source).collect();
 
-  println!("{:?}", tokens);
-
   assert_eq!(tokens, vec![ 
     "(", "1", "2", "3", ")" ]);
 }
@@ -181,7 +177,6 @@ fn tokenize_complex_expression() {
           (T (fib-normal n))))) ;;another comment";
 
   let tokens: Vec<&str> = tokenize(source).collect();
-  println!("{:?}", tokens);
 
   assert_eq!(tokens, vec![
     "(", "begin", 
