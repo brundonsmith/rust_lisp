@@ -16,7 +16,10 @@ pub enum Value {
   List(Rc<ConsCell>),
   NativeFunc(NativeFunc),
   Lambda(Lambda),
-  TailCall(Rc<Value>),
+  TailCall {
+    func: Rc<Value>,
+    args: Vec<Value>,
+  },
 }
 
 impl Value {
@@ -33,7 +36,7 @@ impl Value {
       Value::Int(_) => "integer",
       Value::Float(_) => "float",
       Value::Symbol(_) => "symbol",
-      Value::TailCall(_) => "tail call",
+      Value::TailCall { func, args } => "tail call",
     }
   }
 
@@ -111,7 +114,7 @@ impl Display for Value {
       Value::Int(n) => write!(formatter, "{}", n),
       Value::Float(n) => write!(formatter, "{}", n),
       Value::Symbol(n) => write!(formatter, "{}", n),
-      Value::TailCall(n) => write!(formatter, "<tail-call:{}>", n),
+      Value::TailCall { func, args } => write!(formatter, "<tail-call: {:?} with {:?} >", func, args),
     }
   }
 }
@@ -129,7 +132,7 @@ impl Debug for Value {
       Value::Int(n) => write!(formatter, "Value::Int({:?})", n),
       Value::Float(n) => write!(formatter, "Value::Float({:?})", n),
       Value::Symbol(n) => write!(formatter, "Value::Symbol({:?})", n),
-      Value::TailCall(n) => write!(formatter, "Value::TailCall({:?})", n),
+      Value::TailCall { func, args } => write!(formatter, "Value::TailCall {{ func: {:?}, args: {:?} }}", func, args),
     }
   }
 }
@@ -147,7 +150,7 @@ impl PartialEq for Value {
       Value::Int(n) =>            match other { Value::Int(o) =>            n == o, _ => false },
       Value::Float(n) =>          match other { Value::Float(o) =>          n == o, _ => false },
       Value::Symbol(n) =>      match other { Value::Symbol(o) =>      n == o, _ => false },
-      Value::TailCall(n) => match other { Value::TailCall(o) => n == o, _ => false },
+      Value::TailCall { func, args } => match other { Value::TailCall { func: func2, args: args2 } => func == func2 && args == args2, _ => false },
     }
   }
 }
@@ -194,7 +197,7 @@ impl PartialOrd for Value {
       Value::NativeFunc(_) => None,
       Value::Lambda(_) => None,
       Value::List(_) => None,
-      Value::TailCall(_) => None,
+      Value::TailCall { func, args } => None,
     }
   }
 }

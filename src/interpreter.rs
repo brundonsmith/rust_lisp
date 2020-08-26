@@ -2,22 +2,36 @@
 use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
 use std::{collections::HashMap, rc::Rc, cell::{RefCell}};
 
+/// Evaluate a given Lisp expression in the context of a given environment.
+pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeError> {
+  eval_inner(env, expression, false, false)
+}
+
 /// Treat the given expression as a cons list of expressions (a function body, 
 /// for example). Each expression is evaluated in order and the final one's 
 /// return value is returned.
-fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value) -> Result<Value,RuntimeError> {
-  let mut result = None;
+fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
 
-  for line in body.as_list().unwrap().into_iter() {
-    result = Some(eval(env.clone(), &line));
+  let mut current_expr: Option<&Value> = None;
+  let body_list = body.as_list().unwrap();
+  for line in body_list.into_iter() {
+    if let Some(expr) = current_expr {
+      match eval_inner(env.clone(), &expr, true, in_func) {
+        Ok(_) => (),
+        Err(e) => {
+          return Err(e);
+        }
+      }
+    }
+
+    current_expr = Some(line);
   }
 
-  return result.unwrap_or(Ok(Value::Nil));
+  return eval_inner(env.clone(), current_expr.unwrap(), found_tail, in_func);
 }
 
-/// Evaluate a given Lisp expression in the context of a given environment.
-pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeError> {
-  
+fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
+
   let result: Result<Value,RuntimeError> = match expression {
 
     // look up symbol
@@ -35,7 +49,7 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let cdr = list.cdr.clone().unwrap();
           let symbol = cdr.car.as_symbol().unwrap();
           let value_expr = &cdr.cdr.clone().unwrap().car;
-          let value = eval(env.clone(), value_expr)?;
+          let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
           env.borrow_mut().entries.insert(symbol, value.clone());
 
@@ -46,7 +60,7 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let cdr = list.cdr.clone().unwrap();
           let symbol = cdr.car.as_symbol().unwrap();
           let value_expr = &cdr.cdr.clone().unwrap().car;
-          let value = eval(env.clone(), value_expr)?;
+          let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
           if env.borrow().entries.contains_key(&symbol) {
             env.borrow_mut().entries.insert(symbol, value.clone());
@@ -116,19 +130,19 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
             let symbol = decl_cons.car.as_symbol().unwrap();
             let expr = &decl_cons.cdr.as_ref().unwrap().car;
 
-            let result = eval(let_env.clone(), &expr)?;
+            let result = eval_inner(let_env.clone(), &expr, true, in_func)?;
             let_env.borrow_mut().entries.insert(symbol, result);
           }
 
           let body = Value::List(list.cdr.as_ref().unwrap().cdr.clone().unwrap());
 
-          evaluate_block(let_env.clone(), &body)
+          evaluate_block(let_env.clone(), &body, found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "begin" => {
           let body = Value::List(list.cdr.clone().unwrap());
 
-          evaluate_block(env.clone(), &body)
+          evaluate_block(env.clone(), &body, found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "cond" => {
@@ -139,8 +153,8 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
             let condition = &clause.car;
             let then = &clause.cdr.as_ref().unwrap().car;
 
-            if eval(env.clone(), condition)?.is_truthy() {
-              result = eval(env.clone(), then)?;
+            if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
+              result = eval_inner(env.clone(), then, found_tail, in_func)?;
               break;
             }
           }
@@ -154,11 +168,11 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let then_result = &cdr.as_ref().cdr.as_ref().unwrap().car;
           let else_result = cdr.as_ref().cdr.as_ref().unwrap().cdr.as_ref().map(|c| &c.car);
 
-          if eval(env.clone(), condition)?.is_truthy() {
-            Ok(eval(env.clone(), then_result)?)
+          if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
+            Ok(eval_inner(env.clone(), then_result, found_tail, in_func)?)
           } else {
             Ok(match else_result {
-              Some(v) => eval(env.clone(), v)?,
+              Some(v) => eval_inner(env.clone(), v, found_tail, in_func)?,
               None => Value::Nil
             })
           }
@@ -170,8 +184,8 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let b = &cdr.cdr.as_ref().unwrap().car;
 
           Ok(Value::from_truth(
-              eval(env.clone(), a)?.is_truthy() 
-              && eval(env.clone(), b)?.is_truthy()
+              eval_inner(env.clone(), a, true, in_func)?.is_truthy() 
+              && eval_inner(env.clone(), b, true, in_func)?.is_truthy()
           ))
         },
 
@@ -181,68 +195,38 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
           let b = &cdr.cdr.as_ref().unwrap().car;
 
           Ok(Value::from_truth(
-              eval(env.clone(), a)?.is_truthy() 
-              || eval(env.clone(), b)?.is_truthy()
+              eval_inner(env.clone(), a, true, in_func)?.is_truthy() 
+              || eval_inner(env.clone(), b, true, in_func)?.is_truthy()
           ))
         },
 
-        Value::TailCall(v) => Ok(eval(env.clone(), &v)?),
+        // Value::TailCall(v) => Ok(eval_inner(env.clone(), &v, found_tail)?),
 
         // function call
         _ => {
-          let func = eval(env.clone(), &list.car)?;
+          let func = eval_inner(env.clone(), &list.car, true, in_func)?;
           let args = list.into_iter().skip(1)
-            .map(|car| eval(env.clone(), car).map_err(|e| e.clone()));
+            .map(|car| eval_inner(env.clone(), car, true, in_func).map_err(|e| e.clone()));
 
-          // if within_function_call && is_return_value && !tail_position_found {
-          //   let expr = Value::TailCall(Rc::new(Value::List(Rc::new(ConsCell {
-          //     car: func,
-          //     cdr: Some(vec_to_cons(&args.collect()).as_list().unwrap())
-          //   }))));
-          //   println!("tail-calling: {}", &expr);
-          //   Ok(expr)
-          // } else {
+          if !found_tail && in_func {
+            let args_vec = args
+              .filter_map(|a| a.clone().ok())
+              .collect();
 
-          match func {
+            let expr = Value::TailCall {
+              func: Rc::new(func),
+              args: args_vec
+            };
 
-            // call native function
-            Value::NativeFunc(func) => {
-              let args_vec: Vec<Result<Value,RuntimeError>> = args.collect();
-
-              let err = args_vec.iter()
-                .find_map(|a| a.clone().err());
-              
-              let args_vec = args_vec.iter()
-                .filter_map(|a| a.clone().ok())
-                .collect();
-
-              match err {
-                Some(e) => Err(e),
-                None => func(env.clone(), &args_vec)
-              }
-            },
-
-            // call lambda function
-            Value::Lambda(lamb) => {
-              let argnames = lamb.argnames.as_list().unwrap();
-    
-              // bind args
-              let mut entries: HashMap<String,Value> = HashMap::new();
-              
-              for (arg_name, arg_value) in argnames.into_iter().zip(args) {
-                let name = arg_name.as_symbol().unwrap();
-                entries.insert(name, arg_value?.clone());
-              }
-    
-              let arg_env = Rc::new(RefCell::new(Env {
-                parent: Some(env.clone()),
-                entries
-              }));
-                  
-              // evaluate each line of body
-              evaluate_block(arg_env.clone(), &lamb.body)
+            return Ok(expr);
+          } else {
+            
+            let mut res = call_function(env.clone(), &func, args.collect());
+            while let Ok(Value::TailCall { func, args }) = res {
+              res = call_function(env.clone(), &func, args.iter().map(|arg| Ok(arg.clone())).collect());
             }
-            _ => Err(RuntimeError { msg: String::from("Argument 0 is not callable") })
+
+            res
           }
         }
       }
@@ -252,9 +236,47 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
     _ => Ok(expression.clone()),
   };
 
-  if let Ok(Value::TailCall(expr)) = &result {
-    return eval(env.clone(), expr.as_ref());
-  } else {
-    return result;
+  return result;
+}
+
+fn call_function(env: Rc<RefCell<Env>>, func: &Value, args: Vec<Result<Value,RuntimeError>>) -> Result<Value, RuntimeError> {
+  match func {
+
+    // call native function
+    Value::NativeFunc(func) => {
+      let err = args.iter()
+        .find_map(|a| a.clone().err());
+      
+      let args_vec = args.iter()
+        .filter_map(|a| a.clone().ok())
+        .collect();
+
+      match err {
+        Some(e) => Err(e),
+        None => func(env.clone(), &args_vec)
+      }
+    },
+
+    // call lambda function
+    Value::Lambda(lamb) => {
+      let argnames = lamb.argnames.as_list().unwrap();
+
+      // bind args
+      let mut entries: HashMap<String,Value> = HashMap::new();
+      
+      for (arg_name, arg_value) in argnames.into_iter().zip(args) {
+        let name = arg_name.as_symbol().unwrap();
+        entries.insert(name, arg_value?.clone());
+      }
+
+      let arg_env = Rc::new(RefCell::new(Env {
+        parent: Some(env.clone()),
+        entries
+      }));
+          
+      // evaluate each line of body
+      evaluate_block(arg_env.clone(), &lamb.body, false, true)
+    }
+    _ => Err(RuntimeError { msg: String::from("Argument 0 is not callable") })
   }
 }

@@ -134,56 +134,52 @@ fn eval_fib() {
 }
 
 #[test]
-fn eval_fib_deep() {
-  let result = eval_str("
-    (begin
-      (define fib-normal
-        (lambda (n)
-          (+ (fib (- n 1)) (fib (- n 2)) )))
-
-      (define fib 
-        (lambda (n)
-          (cond           ;; some comment
-            ((== n 0) 0)
-            ((== n 1) 1)
-            (T (fib-normal n))))) ;;another comment
-
-      (fib 10))");
-
-  println!("result: {}", result);
-
-  // assert_eq!(result, Value::Int(55));
-}
-
-#[test]
 fn eval_merge_sort() {
   let result = eval_str("
     (begin
+
       (defun list-head (lst n) 
-          (if (== n 0) 
-            (list) 
-            (cons (car lst) (list-head (cdr lst) (- n 1)))))
+        (if (== n 0) 
+          (list) 
+          (cons (car lst) (list-head (cdr lst) (- n 1)))))
 
       (defun list-tail (lst n) 
-          (if (== n 0) 
-            lst 
-            (list-tail (cdr lst) (- n 1))))
+        (if (== n 0) 
+          lst 
+          (list-tail (cdr lst) (- n 1))))
 
       (defun merge (lst-a lst-b)
-          (cond ((not lst-a) lst-b)
-                ((not lst-b) lst-a)
-                ((< (car lst-a) (car lst-b)) (cons (car lst-a) (merge (cdr lst-a) lst-b)))
-                (T (cons (car lst-b) (merge lst-a (cdr lst-b))))))
+        (cond ((not lst-a) lst-b)
+              ((not lst-b) lst-a)
+              ((< (car lst-a) (car lst-b)) (cons (car lst-a) (merge (cdr lst-a) lst-b)))
+              (T (cons (car lst-b) (merge lst-a (cdr lst-b))))))
 
       (defun mergesort (lst)
-          (if (== (length lst) 1)
-            lst
-            (merge (mergesort (list-head lst (truncate (length lst) 2)))
-                  (mergesort (list-tail lst (truncate (length lst) 2))))))
+        (if (== (length lst) 1)
+          lst
+          (merge (mergesort (list-head lst (truncate (length lst) 2)))
+                (mergesort (list-tail lst (truncate (length lst) 2))))))
 
       (mergesort (list 7 2 5 0 1 5)))");
 
   assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(2), Value::Int(5), Value::Int(5), Value::Int(7) ]));
+}
+
+#[test]
+fn tail_call_test() {
+  let result = eval_str("
+    (begin
+      (defun recurse-test (n)
+          (if (> n 0) 
+            (begin
+              (print n)
+              (recurse-test (- n 1)))
+            n))
+      
+      (recurse-test 1000))
+  ");
+
+  assert_eq!(result, Value::Int(0))
 }
 
 fn eval_str(source: &str) -> Value {
@@ -245,19 +241,4 @@ fn eval_str(source: &str) -> Value {
 //   let end = SystemTime::now();
 
 //   println!("Took {}ms", end.duration_since(start).unwrap().as_millis());
-// }
-
-// #[test]
-// fn tail_call_test() {
-//   let code = String::from("
-//     (begin
-//       (define 
-//         infinite 
-//         (lambda (n)
-//           (infinite (print (+ n 1)))))
-      
-//       (infinite 0))
-//   ");
-//   let env = Rc::new(RefCell::new(default_env()));
-//   eval(env.clone(), &parse(&code));
 // }
