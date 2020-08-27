@@ -200,7 +200,6 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
           ))
         },
 
-        // Value::TailCall(v) => Ok(eval_inner(env.clone(), &v, found_tail)?),
 
         // function call
         _ => {
@@ -220,7 +219,7 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
             return Ok(expr);
           } else {
-            
+
             let mut res = call_function(env.clone(), &func, args.collect());
             while let Ok(Value::TailCall { func, args }) = res {
               res = call_function(env.clone(), &func, args.iter().map(|arg| Ok(arg.clone())).collect());

@@ -183,9 +183,9 @@ fn tail_call_test() {
 }
 
 fn eval_str(source: &str) -> Value {
-  let ast = parse(source).unwrap();
+  let ast = parse(source).next().unwrap().unwrap();
   let env = Rc::new(RefCell::new(default_env()));
-  return eval(env, &ast[0]).unwrap();
+  return eval(env, &ast).unwrap();
 }
 
 // #[bench]

@@ -290,6 +290,7 @@ impl PartialEq for Lambda {
   }
 }
 
+/// The trait bound for any Rust function that is to be called from lisp code
 type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 
 #[derive(Debug, Clone)]

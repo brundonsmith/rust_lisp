@@ -8,9 +8,9 @@ fn parse_basic_expression() {
   (list 
     (* 1 2)  ;; a comment
     (/ 6 3 \"foo\"))";
-  let ast = parse(source).unwrap();
+  let ast = parse(source).next().unwrap().unwrap();
 
-  assert_eq!(ast[0], Value::List(Rc::new(ConsCell {
+  assert_eq!(ast, Value::List(Rc::new(ConsCell {
     car: Value::Symbol(String::from("list")),
     cdr: Some(Rc::new(ConsCell {
       car: Value::List(Rc::new(ConsCell {
@@ -46,9 +46,9 @@ fn parse_basic_expression() {
 #[test]
 fn parse_nil() {
   let source = "()";
-  let ast = parse(source).unwrap();
+  let ast = parse(source).next().unwrap().unwrap();
 
-  assert_eq!(ast[0], Value::Nil);
+  assert_eq!(ast, Value::Nil);
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn parse_multiple_lines() {
     (print 1)
     (print 2)
     (print 3)";
-  let ast = parse(source).unwrap();
+  let ast = parse(source).map(|res| res.unwrap()).collect::<Vec<_>>();
 
   assert_eq!(ast, vec![
     Value::List(Rc::new(ConsCell {

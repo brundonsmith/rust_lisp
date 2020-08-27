@@ -24,19 +24,17 @@ pub fn start_repl(env: Option<Env>) {
 
     let mut buf = String::new();
     io::stdin().read_line(&mut buf).unwrap();
-
-    match parse(&buf) {
-      Ok(exprs) => {
-        for expr in exprs {
-
-          match eval(env_rc.clone(), &expr) {
+      
+    for expr in parse(&buf) {
+      match expr {
+        Ok(e) => {
+          match eval(env_rc.clone(), &e) {
             Ok(val) => println!("{}", val),
             Err(e) => println!("{}", e),
           }
-
-        }
-      },
-      Err(e) => println!("{}", e),
+        },
+        Err(e) => println!("{}", e),
+      }
     }
   }
 }

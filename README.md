@@ -26,11 +26,12 @@ fn main() {
   // create a base environment
   let env = Rc::new(RefCell::new(default_env()));
 
-  // parse into a syntax tree
-  let parse_result = parse("(+ \"Hello \" \"world!\")").unwrap();
+  // parse into an iterator of syntax trees (one for each root)
+  let mut ast_iter = parse("(+ \"Hello \" \"world!\")");
+  let first_expression = ast_iter.next().unwrap().unwrap();
 
   // evaluate
-  let evaluation_result = eval(env.clone(), &parse_result[0]).unwrap();
+  let evaluation_result = eval(env.clone(), &first_expression).unwrap();
 
   // use result
   println!("{}", &evaluation_result);
@@ -68,13 +69,15 @@ or closures:
 
 ```rust
 fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value,RuntimeError> {
-  Ok(Value::Nil)
+  println!("Hello world!");
+  return Ok(Value::Nil);
 }
-```
-```rust
-env.borrow_mut().entries.insert(
-  String::from("customfn"), 
-  Value::NativeFunc(my_func));
+
+...
+
+  env.borrow_mut().entries.insert(
+    String::from("sayhello"),
+    Value::NativeFunc(my_func));
 ```
 
 ```rust

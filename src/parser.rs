@@ -197,45 +197,56 @@ fn tokenize_complex_expression() {
 /// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
 /// are more than one when the base string has more than one independent 
 /// parenthesized lists at its root.
-fn read<'a>(tokens: impl Iterator<Item=&'a str>) -> Result<Vec<Value>,ParseError> {
-  let mut stack: Vec<ParseTree> = vec![ ParseTree::List{vec: vec![], quoted: false} ];
+fn read<'a>(tokens: impl Iterator<Item=&'a str> + 'a) -> impl Iterator<Item=Result<Value,ParseError>> + 'a {
+  let mut stack: Vec<ParseTree> = vec![];
   let mut parenths = 0;
   let mut quote_next = false;
 
-  for token in tokens {
+  tokens.filter_map(move |token| {
     match token {
       "(" => {
         parenths += 1;
 
         stack.push(ParseTree::List{vec: vec![], quoted: quote_next});
         quote_next = false;
+
+        None
       },
       ")" => {
         parenths -= 1;
   
         if stack.len() == 0 {
-          return Err(ParseError {
+          Some(Err(ParseError {
             msg: format!("Unexpected ')'")
-          });
+          }))
         } else {
           let mut finished = stack.pop().unwrap();
-          let destination = stack.last_mut().unwrap();
-  
-          // () is Nil
-          if let ParseTree::List{vec, quoted} = &finished {
-            if vec.len() == 0 {
-              finished = ParseTree::Atom{ atom: Value::Nil, quoted: *quoted };
+
+          if parenths == 0 {
+            stack = vec![];
+            Some(Ok(finished.into_expression()))
+          } else {
+            let destination = stack.last_mut().unwrap();
+
+            // () is Nil
+            if let ParseTree::List{vec, quoted} = &finished {
+              if vec.len() == 0 {
+                finished = ParseTree::Atom{ atom: Value::Nil, quoted: *quoted };
+              }
             }
+            
+            if let ParseTree::List{vec, quoted: _} = destination {
+              vec.push(finished);
+            }
+
+            None
           }
-  
-          match destination {
-            ParseTree::List{vec, quoted: _} => vec.push(finished),
-            _ => ()
-          };
         }
       },
       "'" => {
         quote_next = true;
+
+        None
       },
       _ => {  // atom
         let expr = ParseTree::Atom{ atom: read_atom(&token), quoted: quote_next };
@@ -244,28 +255,12 @@ fn read<'a>(tokens: impl Iterator<Item=&'a str>) -> Result<Vec<Value>,ParseError
         if let ParseTree::List{vec, quoted: _} = stack.last_mut().unwrap() {
           vec.push(expr);
         }
+
+        None
       }
-    };
-  }
-
-  if parenths > 0 {
-    return Err(ParseError {
-      msg: format!("{} unclosed parenths", parenths)
-    });
-  } else if parenths < 0 {
-    return Err(ParseError {
-      msg: format!("{} too many closing parenths", parenths)
-    });
-  }
-
-  let parse_trees = match stack.into_iter().last().unwrap() {
-    ParseTree::List{vec, quoted: _} => vec,
-    _ => vec![ ParseTree::Atom{ atom: Value::Nil, quoted: false } ]
-  };
-
-  return Ok(parse_trees.into_iter().map(|t| t.into_expression()).collect());
+    }
+  })
 }
-
 
 fn read_atom(token: &str) -> Value {
   let token_lowercase = token.to_lowercase();
@@ -303,7 +298,7 @@ fn read_atom(token: &str) -> Value {
 /// Parse a string of Lisp code into a series of s-expressions. There
 /// are more than one expressions when the base string has more than one 
 /// independent parenthesized lists at its root.
-pub fn parse(code: &str) -> Result<Vec<Value>,ParseError> {
+pub fn parse(code: &str) -> impl Iterator<Item=Result<Value,ParseError>> + '_ {
   read(tokenize(code))
 }
 
