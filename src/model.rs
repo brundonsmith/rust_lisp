@@ -103,8 +103,8 @@ impl Display for Value {
     match self {
       Value::NativeFunc(_) => write!(formatter, "<native_function>"),
       Value::Nil => write!(formatter, "NIL"),
-      Value::True => write!(formatter, "#t"),
-      Value::False => write!(formatter, "#f"),
+      Value::True => write!(formatter, "T"),
+      Value::False => write!(formatter, "F"),
       Value::Lambda(n) => {
         let body_str = format!("{}", &n.body);
         return write!(formatter, "<func:(lambda {} {})>", n.argnames, &body_str[1..body_str.chars().count() - 1]);
