@@ -114,5 +114,6 @@ Functions (in `default_env()`):
 `length`, `range`, `+`, `-`, `*`, `/`, `truncate`, `not`, `==`, `!=`, `<`, `<=`,
 `>`, `>=`, `apply`, `eval`
 
-Other:
+Other features:
 - Single-tick quoting
+- Tail-call optimization

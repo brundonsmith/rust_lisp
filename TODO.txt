@@ -1,3 +1,5 @@
+- Add RefCell inside ConsCells so that they can be mutated (and then implement 
+  FromIterator and possibly push() method)
 - Macros
 - Backtick (with escapes)
 - Rest arguments
@@ -5,5 +7,4 @@
 - Some kind of key/value structure
 - Ensure reference cycles are handled
 - Rust macro for interop
-- Instead of vec_to_cons, implement FromIterator
 - Make strings immutable?
