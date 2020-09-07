@@ -9,6 +9,8 @@ pub use default_environment::default_env;
 
 pub mod model;
 pub mod utils;
+#[macro_use]
+pub mod macros;
 
 use model::Env;
 use std::{rc::Rc, cell::RefCell, io};

@@ -102,6 +102,45 @@ the Vec of evaluated argument values. For convenience, utility functions
 doing basic argument retrieval with error messaging. See 
 `default_environment.rs` for examples.
 
+# The `lisp!` macro
+
+A Rust macro, named `lisp!`, is included which allows the user to embed sanitized
+Lisp code inside their Rust code, which will be converted to a syntax tree at compile-time:
+
+```rust
+fn parse_basic_expression() {
+  let ast = parse("
+    (list 
+      (* 1 2)  ;; a comment
+      (/ 6 3 \"foo\"))").next().unwrap().unwrap();
+
+  assert_eq!(ast, lisp! {
+    (list 
+      (* 1 2)
+      (/ 6 3 "foo"))
+  });
+}
+```
+
+Note that this just gives you a syntax tree (in the form of a `Value`). If you want
+to evaluate it, you would then pass it to `eval()`.
+
+This macro also allows Rust expressions (of type `Value`) to be embedded within it using `{  }`:
+
+```rust
+fn parse_basic_expression() {
+  let ast = parse("
+    (+ 3 1)").next().unwrap().unwrap();
+
+  let n = 2;
+
+  assert_eq!(ast, lisp! {
+    (+ { Value::Int(n + 1) } 1)
+  });
+}
+```
+
+
 # Included functionality
 
 Special forms:

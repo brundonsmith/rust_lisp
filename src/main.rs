@@ -1,11 +1,12 @@
 
-#![allow(dead_code)]
+#![allow(dead_code,unused_macros)]
 
 mod parser;
 mod default_environment;
 mod interpreter;
 mod utils;
 mod model;
+mod macros;
 
 use rust_lisp::start_repl;
 
