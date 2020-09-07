@@ -318,22 +318,26 @@ mod list {
         let mut tail: Option<Rc<RefCell<ConsCell>>> = None;
 
         for val in iter {
+
+          // The cons cell for the current value
           let new_cons = Rc::new(RefCell::new(ConsCell {
             car: val,
             cdr: None,
           }));
 
+          // the current cell is the going to be the new tail
+          let new_tail = new_cons.clone();
+
+          // if this is the first cell, put it in the List
           if new_list.head.is_none() {
             new_list.head = Some(new_cons.clone());
             tail = Some(new_cons.clone());
+          // otherwise, put it in the current tail cell
+          } else if let Some(tail_cons) = tail {
+            tail_cons.as_ref().borrow_mut().cdr = Some(new_cons);
           }
 
-          let new_tail = new_cons.clone();
-
-          if let Some(cons) = tail {
-            cons.as_ref().borrow_mut().cdr = Some(new_cons);
-          }
-
+          // move the tail reference to the new cell
           tail = Some(new_tail);
         }
 
