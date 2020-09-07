@@ -92,7 +92,7 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
       if ch.is_numeric() {
         let front_end = index + match_pred(&code[index..], |c| c.is_numeric()).unwrap() + 1;
 
-        if &code[front_end..front_end+1] == "." {
+        if front_end < code.len() - 1 && &code[front_end..front_end+1] == "." {
           let back_end = front_end + 1 + match_pred(&code[front_end + 1..], |c| c.is_numeric()).unwrap() + 1;
 
           skip_to = Some(back_end);
