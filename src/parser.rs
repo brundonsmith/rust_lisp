@@ -252,11 +252,14 @@ fn read<'a>(tokens: impl Iterator<Item=&'a str> + 'a) -> impl Iterator<Item=Resu
         let expr = ParseTree::Atom{ atom: read_atom(&token), quoted: quote_next };
         quote_next = false;
 
-        if let ParseTree::List{vec, quoted: _} = stack.last_mut().unwrap() {
-          vec.push(expr);
+        if stack.len() > 0 {
+          if let ParseTree::List{vec, quoted: _} = stack.last_mut().unwrap() {
+            vec.push(expr);
+          }
+          None
+        } else {
+          Some(Ok(expr.into_expression()))
         }
-
-        None
       }
     }
   })

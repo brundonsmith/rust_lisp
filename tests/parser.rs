@@ -52,6 +52,14 @@ fn parse_nil() {
 }
 
 #[test]
+fn parse_atom() {
+  let source = "12";
+  let ast = parse(source).next().unwrap().unwrap();
+
+  assert_eq!(ast, Value::Int(12));
+}
+
+#[test]
 fn parse_multiple_lines() {
   let source = "
     (print 1)
