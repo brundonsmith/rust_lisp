@@ -231,7 +231,7 @@ fn read<'a>(tokens: impl Iterator<Item=&'a str> + 'a) -> impl Iterator<Item=Resu
             // () is Nil
             if let ParseTree::List{vec, quoted} = &finished {
               if vec.len() == 0 {
-                finished = ParseTree::Atom{ atom: Value::Nil, quoted: *quoted };
+                finished = ParseTree::Atom{ atom: Value::NIL, quoted: *quoted };
               }
             }
             
@@ -274,7 +274,7 @@ fn read_atom(token: &str) -> Value {
   }
 
   if token_lowercase == "nil" {
-    return Value::Nil;
+    return Value::NIL;
   }
 
   let as_int = token.parse::<i32>();

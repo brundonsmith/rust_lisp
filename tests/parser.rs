@@ -48,7 +48,7 @@ fn parse_nil() {
   let source = "()";
   let ast = parse(source).next().unwrap().unwrap();
 
-  assert_eq!(ast, Value::Nil);
+  assert_eq!(ast, Value::NIL);
 }
 
 #[test]

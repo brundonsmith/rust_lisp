@@ -97,7 +97,7 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
           env.borrow_mut().entries.insert(symbol, lambda);
 
-          Ok(Value::Nil)
+          Ok(Value::NIL)
         },
 
         Value::Symbol(symbol) if symbol == "lambda" => {
@@ -147,7 +147,7 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
         Value::Symbol(symbol) if symbol == "cond" => {
           let clauses = list.cdr();
-          let mut result = Value::Nil;
+          let mut result = Value::NIL;
 
           for clause in clauses.into_iter().map(|clause| clause.as_list().unwrap()) {
             let condition = &clause.car()?;
@@ -173,7 +173,7 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
           } else {
             Ok(match else_result {
               Some(v) => eval_inner(env.clone(), &v, found_tail, in_func)?,
-              None => Value::Nil
+              None => Value::NIL
             })
           }
         },

@@ -63,7 +63,7 @@ pub fn require_string_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index
 }
 
 /// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`, 
-/// assumed to be a `Value::List()` or a `Value::Nil`, erring if that isn't 
+/// assumed to be a `Value::List()` or a `Value::NIL`, erring if that isn't 
 /// the case.
 pub fn require_list_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index: usize) -> Result<&'a List,RuntimeError> {
   match require_parameter(func_name, args, index) {

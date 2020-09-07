@@ -24,7 +24,7 @@ pub fn default_env() -> Env {
       |_env, args| {
         let val = require_parameter("null?", args, 0)?;
 
-        Ok(Value::from_truth(*val == Value::Nil))
+        Ok(Value::from_truth(*val == Value::NIL))
       }));
     
   entries.insert(
@@ -36,7 +36,7 @@ pub fn default_env() -> Env {
         Ok(match val {
           Value::Int(_) => Value::True,
           Value::Float(_) => Value::True,
-          _ => Value::Nil,
+          _ => Value::NIL,
         })
       }));
   
@@ -48,7 +48,7 @@ pub fn default_env() -> Env {
 
         Ok(match val {
           Value::Symbol(_) => Value::True,
-          _ => Value::Nil,
+          _ => Value::NIL,
         })
       }));
 
@@ -61,7 +61,7 @@ pub fn default_env() -> Env {
         Ok(match val {
           Value::True => Value::True,
           Value::False => Value::True,
-          _ => Value::Nil,
+          _ => Value::NIL,
         })
       }));
     
@@ -74,7 +74,7 @@ pub fn default_env() -> Env {
         Ok(match val {
           Value::Lambda(_) => Value::True,
           Value::NativeFunc(_) => Value::True,
-          _ => Value::Nil,
+          _ => Value::NIL,
         })
       }));
 
@@ -86,7 +86,7 @@ pub fn default_env() -> Env {
 
         Ok(match val {
           Value::List(_) => Value::True,
-          _ => Value::Nil,
+          _ => Value::NIL,
         })
       }));
 
@@ -130,7 +130,7 @@ pub fn default_env() -> Env {
         let index = require_int_parameter("nth", args, 0)?;
         let list = require_list_parameter("nth", args, 1)?;
 
-        return Ok(list.into_iter().nth(index as usize).map(|v| v.clone()).unwrap_or(Value::Nil));
+        return Ok(list.into_iter().nth(index as usize).map(|v| v.clone()).unwrap_or(Value::NIL));
       }));
 
   entries.insert(

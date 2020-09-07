@@ -70,7 +70,7 @@ or closures:
 ```rust
 fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value,RuntimeError> {
   println!("Hello world!");
-  return Ok(Value::Nil);
+  return Ok(Value::NIL);
 }
 
 ...
@@ -86,7 +86,7 @@ entries.insert(
   Value::NativeFunc(
     |env, args| {
       println!("Hello world!");
-      return Ok(Value::Nil);
+      return Ok(Value::NIL);
     }));
 ```
 
