@@ -1,6 +1,5 @@
 
-use crate::model::{Value};
-use crate::utils::vec_to_cons;
+use crate::{model::{Value,List}, lisp};
 use std::fmt::Display;
 
 /// A slightly more convenient data structure for building the parse tree, before
@@ -17,25 +16,19 @@ impl ParseTree {
     match self {
       ParseTree::Atom{atom, quoted} => 
         if quoted {
-          vec_to_cons(&vec![ Value::Symbol(String::from("quote")), atom ])
+          lisp! { (quote {atom}) }
         } else {
           atom
         },
-      ParseTree::List{vec, quoted} =>
+      ParseTree::List{vec, quoted} => {
+        let list = Value::List(vec.into_iter().map(|parse_tree| parse_tree.into_expression()).collect::<List>());
+        
         if quoted {
-          vec_to_cons(&vec![ 
-            Value::Symbol(String::from("quote")), 
-            vec_to_cons(
-              &vec.into_iter()
-                    .map(|parse_tree| parse_tree.into_expression())
-                    .collect())
-          ])
+          lisp! { (quote {list}) }
         } else {
-          vec_to_cons(
-            &vec.into_iter()
-                  .map(|parse_tree| parse_tree.into_expression())
-                  .collect())
+          list
         }
+      }
     }
   }
 

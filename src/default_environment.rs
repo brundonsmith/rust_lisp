@@ -1,6 +1,6 @@
 
-use std::{collections::HashMap};
-use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter}, model::{Value, Env, RuntimeError, List}, interpreter::eval};
+use std::collections::HashMap;
+use crate::{utils::{require_list_parameter, require_parameter, require_int_parameter}, model::{Value, Env, RuntimeError, List}, interpreter::eval, lisp};
 
 /// Initialize an instance of `Env` with several core Lisp functions implemented
 /// in Rust. **Without this, you will only have access to the functions you 
@@ -121,7 +121,7 @@ pub fn default_env() -> Env {
   entries.insert(
     String::from("list"),
     Value::NativeFunc(
-      |_env, args| Ok(vec_to_cons(args))));
+      |_env, args| Ok(Value::List(args.into_iter().collect::<List>()))));
   
   entries.insert(
     String::from("nth"),
@@ -169,7 +169,7 @@ pub fn default_env() -> Env {
 
         return list.into_iter()
           .map(|val| {
-            let expr = Value::List([ func.clone(), val.clone() ].into_iter().collect());
+            let expr = lisp! { ({func.clone()} {val.clone()}) };
 
             eval(env.clone(), &expr)
           })
@@ -212,7 +212,7 @@ pub fn default_env() -> Env {
         let start = require_int_parameter("range", args, 0)?;
         let end = require_int_parameter("range", args, 1)?;
 
-        Ok(vec_to_cons(&(start..end).map(|i| Value::Int(i)).collect()))
+        Ok(Value::List((start..end).map(|i| Value::Int(i)).collect::<List>()))
       }));
     
   entries.insert(

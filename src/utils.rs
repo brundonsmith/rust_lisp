@@ -76,14 +76,3 @@ pub fn require_list_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index: 
     Err(err) => Err(err)
   }
 }
-
-/// Convert a &Vec<Value> to a cons list (`Value::List()`) containing the 
-/// sequence of values from the Vec.
-pub fn vec_to_cons(vec: &Vec<Value>) -> Value {
-  Value::List(vec.iter().collect::<List>())
-}
-
-/// Same `as vec_to_cons()` but takes a &Vec<&Value> instead.
-pub fn vec_refs_to_cons(vec: &Vec<&Value>) -> Value {
-  Value::List(vec.iter().map(|v| *v).collect::<List>())
-}

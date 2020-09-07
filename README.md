@@ -46,17 +46,15 @@ error-handling by way of `Result`s.
 
 The heart of the model is `Value`, an enum encompassing every type of valid Lisp
 value. Most of these are trivial, but `Value::List` is not. It holds a 
-recursive `ConsCell` data structure behind an `Rc` which functions like a 
-linked-list. This can be difficult to work with in Rust code, so `into_iter()`
-has been implemented for `&ConsCell`. On a similar 
-note, `vec_to_cons()` is provided for going the other direction- from a 
-`Vec<Value>` to a cons list.
+recursive `List` data structure which functions internally like a 
+linked-list. `into_iter()` and `from_iter()` have been implemented for `List`, 
+and there is also a `lisp!` macro (see below) which makes working with Lists, 
+in particular, much more conventient.
 
 `Value` does not implement `Copy` because of cases like `Value::List`, so if you
 read the source you'll see lots of `value.clone()`. This almost always amounts 
 to copying a primitive, except in the `Value::List` case where it means cloning
-an `Rc` pointer. In all cases, it's considered cheap enough to do liberally.
-
+an internal `Rc` pointer. In all cases, it's considered cheap enough to do liberally.
 
 # The environment and exposing Rust functions
 
@@ -104,8 +102,8 @@ doing basic argument retrieval with error messaging. See
 
 # The `lisp!` macro
 
-A Rust macro, named `lisp!`, is included which allows the user to embed sanitized
-Lisp code inside their Rust code, which will be converted to a syntax tree at compile-time:
+A Rust macro, named `lisp!`, is provided which allows the user to embed sanitized
+Lisp syntax inside their Rust code, which will be converted to an AST at compile-time:
 
 ```rust
 fn parse_basic_expression() {
@@ -123,9 +121,9 @@ fn parse_basic_expression() {
 ```
 
 Note that this just gives you a syntax tree (in the form of a `Value`). If you want
-to evaluate it, you would then pass it to `eval()`.
+to actually evaluate the expression, you would need to then pass it to `eval()`.
 
-This macro also allows Rust expressions (of type `Value`) to be embedded within it using `{  }`:
+The macro also allows Rust expressions (of type `Value`) to be embedded within the lisp code using `{  }`:
 
 ```rust
 fn parse_basic_expression() {
@@ -139,6 +137,12 @@ fn parse_basic_expression() {
   });
 }
 ```
+
+**NOTE: There is currently a problem with the macro where predicates ending in `?` 
+cannot be used. This is because `?` cannot be a valid part of an identifier in Rust, and 
+so `null?` for example cannot be processed by Rust as a single token. The solution will likely
+involve renaming those predicates to not include `?`. This is why the project is still in version
+`0.X.X` :)**
 
 
 # Included functionality

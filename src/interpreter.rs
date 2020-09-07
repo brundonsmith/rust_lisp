@@ -1,5 +1,5 @@
 
-use crate::{model::{Value, Env, RuntimeError, Lambda}, utils::vec_to_cons};
+use crate::{model::{Value, Env, RuntimeError, Lambda, List}};
 use std::{collections::HashMap, rc::Rc, cell::{RefCell}};
 
 /// Evaluate a given Lisp expression in the context of a given environment.
@@ -87,7 +87,7 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
           list_iter.next().unwrap(); // skip "defun"
           let symbol = list_iter.next().unwrap().as_symbol().unwrap();
           let argnames = Rc::new(list_iter.next().unwrap().clone());
-          let body = Rc::new(vec_to_cons(&list_iter.map(|v| v.clone()).collect()));
+          let body = Rc::new(Value::List(list_iter.map(|v| v.clone()).collect::<List>()));
 
           let lambda = Value::Lambda(Lambda {
             closure: env.clone(),

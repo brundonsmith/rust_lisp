@@ -1,10 +1,9 @@
 
 use std::{cell::RefCell, rc::Rc};
-use rust_lisp::model::Value;
+use rust_lisp::{model::{Value,List}, lisp};
 use rust_lisp::parse;
 use rust_lisp::eval;
 use rust_lisp::default_env;
-use rust_lisp::utils::vec_to_cons;
 
 #[test]
 fn eval_basic_expression() {
@@ -24,14 +23,14 @@ fn eval_quote_1() {
 fn eval_quote_2() {
   let result = eval_str("(quote (1 2 3))");
 
-  assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
+  assert_eq!(result, lisp! { (1 2 3) });
 }
 
 #[test]
 fn eval_quote_tick_list() {
   let result = eval_str("'(1 2 3)");
 
-  assert_eq!(result, vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
+  assert_eq!(result, lisp! { (1 2 3) });
 }
 
 #[test]
@@ -59,7 +58,7 @@ fn eval_let() {
       (print blah)
       (list (* foo bar) (+ blah \" also\")))");
 
-  assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
+  assert_eq!(result, lisp! { (84 "stuff also") });
 }
 
 #[test]
@@ -76,7 +75,7 @@ fn eval_let_scope() {
 
       (* foo bar))");
 
-  assert_eq!(result, vec_to_cons(&vec![ Value::Int(84), Value::String(String::from("stuff also")) ]));
+    assert_eq!(result, lisp! { (84 "stuff also") });
 }
 
 #[test]
@@ -130,7 +129,7 @@ fn eval_fib() {
 
       (list (fib 0) (fib 1) (fib 2) (fib 3) (fib 4) (fib 5) (fib 6) (fib 7) (fib 8)))");
 
-  assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(5), Value::Int(8), Value::Int(13), Value::Int(21) ]));
+  assert_eq!(result, lisp! { (0 1 1 2 3 5 8 13 21) });
 }
 
 #[test]
@@ -162,7 +161,7 @@ fn eval_merge_sort() {
 
       (mergesort (list 7 2 5 0 1 5)))");
 
-  assert_eq!(result, vec_to_cons(&vec![ Value::Int(0), Value::Int(1), Value::Int(2), Value::Int(5), Value::Int(5), Value::Int(7) ]));
+  assert_eq!(result, lisp! { (0 1 2 5 5 7) });
 }
 
 #[test]

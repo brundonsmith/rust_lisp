@@ -1,10 +1,9 @@
 
 use std::{cell::RefCell, rc::Rc};
-use rust_lisp::model::Value;
+use rust_lisp::{model::{Value,List}, lisp};
 use rust_lisp::parse;
 use rust_lisp::eval;
 use rust_lisp::default_env;
-use rust_lisp::utils::vec_to_cons;
 
 #[test]
 fn one() {
@@ -13,7 +12,7 @@ fn one() {
 
 #[test]
 fn two() {
-  assert_eq!(eval_str("(car (list (list 1 2 3) 4 5 6))"), vec_to_cons(&vec![ Value::Int(1), Value::Int(2), Value::Int(3) ]));
+  assert_eq!(eval_str("(car (list (list 1 2 3) 4 5 6))"), lisp! { (1 2 3) });
 }
 
 #[test]
@@ -29,7 +28,7 @@ fn four() {
 
 #[test]
 fn five() {
-  assert_eq!(eval_str("(cdr (list 1 2 3))"), vec_to_cons(&vec![ Value::Int(2), Value::Int(3) ]));
+  assert_eq!(eval_str("(cdr (list 1 2 3))"), lisp! { (2 3) });
 }
 
 #[test]
@@ -40,7 +39,7 @@ fn six() {
 
 #[test]
 fn seven() {
-  assert_eq!(eval_str("(cons 4 (list 1 2 3))"), vec_to_cons(&vec![ Value::Int(4), Value::Int(1), Value::Int(2), Value::Int(3) ]));
+  assert_eq!(eval_str("(cons 4 (list 1 2 3))"), lisp! { (4 1 2 3) });
 }
 
 
