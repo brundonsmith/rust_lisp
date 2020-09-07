@@ -26,7 +26,7 @@ pub enum Value {
 
 impl Value {
   
-  pub const Nil: Value = Value::List(List::Nil);
+  pub const NIL: Value = Value::List(List::NIL);
 
   pub fn type_name(&self) -> &str {
     match self {
@@ -35,7 +35,7 @@ impl Value {
       Value::True => "T",
       Value::False => "F",
       Value::String(_) => "string",
-      Value::List(List::Nil) => "nil",
+      Value::List(List::NIL) => "nil",
       Value::List(_) => "list",
       Value::Int(_) => "integer",
       Value::Float(_) => "float",
@@ -53,7 +53,7 @@ impl Value {
 
   pub fn is_truthy(&self) -> bool {
     match self {
-      Value::List(List::Nil) => false,
+      Value::List(List::NIL) => false,
       Value::False => false,
       _ => true,
     }
@@ -223,7 +223,7 @@ mod list {
   }
   
   impl List {
-    pub const Nil: List = List { head: None };
+    pub const NIL: List = List { head: None };
 
     pub fn car(&self) -> Result<Value,RuntimeError> {
       self.head.as_ref().map(|rc| rc.borrow().car.clone()).ok_or(RuntimeError { msg: String::from("Attempted to apply car on nil") })
