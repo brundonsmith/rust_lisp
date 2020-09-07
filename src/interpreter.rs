@@ -12,7 +12,7 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
 /// return value is returned.
 fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
 
-  let mut current_expr: Option<&Value> = None;
+  let mut current_expr: Option<Value> = None;
   let body_list = body.as_list().unwrap();
   for line in body_list.into_iter() {
     if let Some(expr) = current_expr {
@@ -27,7 +27,7 @@ fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value, found_tail: bool, in_func
     current_expr = Some(line);
   }
 
-  return eval_inner(env.clone(), current_expr.unwrap(), found_tail, in_func);
+  return eval_inner(env.clone(), &current_expr.unwrap(), found_tail, in_func);
 }
 
 fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
@@ -42,13 +42,13 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
     // s-expression
     Value::List(list) => {
-      match &list.car {
+      match &list.car()? {
 
         // special forms
         Value::Symbol(symbol) if symbol == "define" => {
-          let cdr = list.cdr.clone().unwrap();
-          let symbol = cdr.car.as_symbol().unwrap();
-          let value_expr = &cdr.cdr.clone().unwrap().car;
+          let cdr = list.cdr();
+          let symbol = cdr.car()?.as_symbol().unwrap();
+          let value_expr = &cdr.cdr().car()?;
           let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
           env.borrow_mut().entries.insert(symbol, value.clone());
@@ -57,9 +57,9 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         },
 
         Value::Symbol(symbol) if symbol == "set" => {
-          let cdr = list.cdr.clone().unwrap();
-          let symbol = cdr.car.as_symbol().unwrap();
-          let value_expr = &cdr.cdr.clone().unwrap().car;
+          let cdr = list.cdr();
+          let symbol = cdr.car()?.as_symbol().unwrap();
+          let value_expr = &cdr.cdr().car()?;
           let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
           if env.borrow().entries.contains_key(&symbol) {
@@ -101,9 +101,9 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         },
 
         Value::Symbol(symbol) if symbol == "lambda" => {
-          let cdr = list.cdr.as_ref().unwrap();
-          let argnames = Rc::new(cdr.car.clone());
-          let body = Rc::new(Value::List(cdr.cdr.clone().unwrap()));
+          let cdr = list.cdr();
+          let argnames = Rc::new(cdr.car()?.clone());
+          let body = Rc::new(Value::List(cdr.cdr()));
 
           Ok(Value::Lambda(Lambda {
             closure: env.clone(),
@@ -113,7 +113,7 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         },
 
         Value::Symbol(symbol) if symbol == "quote" => {
-          let exp = list.cdr.as_ref().unwrap().car.clone();
+          let exp = list.cdr().car()?.clone();
 
           Ok(exp)
         },
@@ -123,35 +123,35 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
             parent: Some(env.clone()),
             entries: HashMap::new()
           }));
-          let declarations = list.cdr.as_ref().map(|c| &c.car).unwrap();
+          let declarations = list.cdr().car()?;
 
           for decl in declarations.as_list().unwrap().into_iter() {
             let decl_cons = decl.as_list().unwrap();
-            let symbol = decl_cons.car.as_symbol().unwrap();
-            let expr = &decl_cons.cdr.as_ref().unwrap().car;
+            let symbol = decl_cons.car()?.as_symbol().unwrap();
+            let expr = &decl_cons.cdr().car()?;
 
             let result = eval_inner(let_env.clone(), &expr, true, in_func)?;
             let_env.borrow_mut().entries.insert(symbol, result);
           }
 
-          let body = Value::List(list.cdr.as_ref().unwrap().cdr.clone().unwrap());
+          let body = Value::List(list.cdr().cdr());
 
           evaluate_block(let_env.clone(), &body, found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "begin" => {
-          let body = Value::List(list.cdr.clone().unwrap());
+          let body = Value::List(list.cdr());
 
           evaluate_block(env.clone(), &body, found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "cond" => {
-          let clauses = list.cdr.as_ref().unwrap();
+          let clauses = list.cdr();
           let mut result = Value::Nil;
 
           for clause in clauses.into_iter().map(|clause| clause.as_list().unwrap()) {
-            let condition = &clause.car;
-            let then = &clause.cdr.as_ref().unwrap().car;
+            let condition = &clause.car()?;
+            let then = &clause.cdr().car()?;
 
             if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
               result = eval_inner(env.clone(), then, found_tail, in_func)?;
@@ -163,25 +163,25 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         },
 
         Value::Symbol(symbol) if symbol == "if" => {
-          let cdr = list.cdr.as_ref().unwrap();
-          let condition = &cdr.as_ref().car;
-          let then_result = &cdr.as_ref().cdr.as_ref().unwrap().car;
-          let else_result = cdr.as_ref().cdr.as_ref().unwrap().cdr.as_ref().map(|c| &c.car);
+          let cdr = list.cdr();
+          let condition = &cdr.car()?;
+          let then_result = &cdr.cdr().car()?;
+          let else_result = cdr.cdr().cdr().car().ok();
 
           if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
             Ok(eval_inner(env.clone(), then_result, found_tail, in_func)?)
           } else {
             Ok(match else_result {
-              Some(v) => eval_inner(env.clone(), v, found_tail, in_func)?,
+              Some(v) => eval_inner(env.clone(), &v, found_tail, in_func)?,
               None => Value::Nil
             })
           }
         },
 
         Value::Symbol(symbol) if symbol == "and" => {
-          let cdr = list.cdr.as_ref().unwrap();
-          let a = &cdr.car;
-          let b = &cdr.cdr.as_ref().unwrap().car;
+          let cdr = list.cdr();
+          let a = &cdr.car()?;
+          let b = &cdr.cdr().car()?;
 
           Ok(Value::from_truth(
               eval_inner(env.clone(), a, true, in_func)?.is_truthy() 
@@ -190,9 +190,9 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         },
 
         Value::Symbol(symbol) if symbol == "or" => {
-          let cdr = list.cdr.as_ref().unwrap();
-          let a = &cdr.car;
-          let b = &cdr.cdr.as_ref().unwrap().car;
+          let cdr = list.cdr();
+          let a = &cdr.car()?;
+          let b = &cdr.cdr().car()?;
 
           Ok(Value::from_truth(
               eval_inner(env.clone(), a, true, in_func)?.is_truthy() 
@@ -203,9 +203,9 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
         // function call
         _ => {
-          let func = eval_inner(env.clone(), &list.car, true, in_func)?;
+          let func = eval_inner(env.clone(), &list.car()?, true, in_func)?;
           let args = list.into_iter().skip(1)
-            .map(|car| eval_inner(env.clone(), car, true, in_func).map_err(|e| e.clone()));
+            .map(|car| eval_inner(env.clone(), &car, true, in_func).map_err(|e| e.clone()));
 
           if !found_tail && in_func {
             let args_vec = args

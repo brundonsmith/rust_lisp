@@ -1,6 +1,5 @@
 
-use crate::model::{ConsCell, Value, RuntimeError};
-use std::rc::Rc;
+use crate::model::{Value, RuntimeError, List};
 
 // pub struct ArgumentError {
 //   msg: String,
@@ -66,11 +65,10 @@ pub fn require_string_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index
 /// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`, 
 /// assumed to be a `Value::List()` or a `Value::Nil`, erring if that isn't 
 /// the case.
-pub fn require_list_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index: usize) -> Result<&'a Value,RuntimeError> {
+pub fn require_list_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index: usize) -> Result<&'a List,RuntimeError> {
   match require_parameter(func_name, args, index) {
     Ok(val) => match val {
-      Value::List(_) => Ok(val),
-      Value::Nil => Ok(val),
+      Value::List(list) => Ok(list),
       _ => Err(RuntimeError {
         msg: format!("Function \"{}\" requires argument {} to be a list; got {}", func_name, index, val.type_name()),
       })
@@ -82,34 +80,10 @@ pub fn require_list_parameter<'a>(func_name: &str, args: &'a Vec<Value>, index: 
 /// Convert a &Vec<Value> to a cons list (`Value::List()`) containing the 
 /// sequence of values from the Vec.
 pub fn vec_to_cons(vec: &Vec<Value>) -> Value {
-  let mut cons: Option<ConsCell> = None;
-
-  for val in vec.iter().rev() {          
-    cons = Some(ConsCell {
-      car: val.clone(),
-      cdr: cons.map(|cons_cell| Rc::new(cons_cell)),
-    });
-  }
-
-  return match cons {
-    Some(cons) => Value::List(Rc::new(cons)),
-    None => Value::Nil,
-  };
+  Value::List(vec.iter().collect::<List>())
 }
 
 /// Same `as vec_to_cons()` but takes a &Vec<&Value> instead.
 pub fn vec_refs_to_cons(vec: &Vec<&Value>) -> Value {
-  let mut cons: Option<ConsCell> = None;
-
-  for val in vec.iter().rev() {          
-    cons = Some(ConsCell {
-      car: (*val).clone(),
-      cdr: cons.map(|cons_cell| Rc::new(cons_cell)),
-    });
-  }
-
-  return match cons {
-    Some(cons) => Value::List(Rc::new(cons)),
-    None => Value::Nil,
-  };
+  Value::List(vec.iter().map(|v| *v).collect::<List>())
 }

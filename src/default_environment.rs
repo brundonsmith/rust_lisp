@@ -1,6 +1,6 @@
 
-use std::{rc::Rc, collections::HashMap};
-use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter, vec_refs_to_cons}, model::{Value, Env, RuntimeError, ConsCell}, interpreter::eval};
+use std::{collections::HashMap};
+use crate::{utils::{require_list_parameter, vec_to_cons, require_parameter, require_int_parameter}, model::{Value, Env, RuntimeError, List}, interpreter::eval};
 
 /// Initialize an instance of `Env` with several core Lisp functions implemented
 /// in Rust. **Without this, you will only have access to the functions you 
@@ -96,11 +96,7 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("car", args, 0)?;
 
-        return match list {
-          Value::List(c) => Ok(c.car.clone()),
-          Value::Nil => Err(RuntimeError { msg: String::from("Attempted to apply car on nil") }),
-          _ => panic!("Argument validation didn't work properly"),
-        };
+        return list.car().map(|c| c.clone());
       }));
     
   entries.insert(
@@ -109,14 +105,7 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("cdr", args, 0)?;
 
-        return Ok(match list {
-          Value::List(c) => match &c.cdr {
-            Some(c) => Value::List(c.clone()),
-            None => Value::Nil,
-          },
-          Value::Nil => Value::Nil,
-          _ => panic!("Argument validation didn't work properly"),
-        });
+        return Ok(Value::List(list.cdr()));
       }));
     
   entries.insert(
@@ -126,14 +115,7 @@ pub fn default_env() -> Env {
         let car = require_parameter("cons", args, 0)?;
         let cdr = require_list_parameter("cons", args, 1)?;
 
-        return Ok(Value::List(Rc::new(ConsCell {
-          car: car.clone(),
-          cdr: match cdr {
-            Value::List(c) => Some(c.clone()),
-            Value::Nil => None,
-            _ => panic!("Argument validation didn't work properly"),
-          }
-        })));
+        return Ok(Value::List(cdr.cons(car.clone())));
       }));
     
   entries.insert(
@@ -148,14 +130,7 @@ pub fn default_env() -> Env {
         let index = require_int_parameter("nth", args, 0)?;
         let list = require_list_parameter("nth", args, 1)?;
 
-        return Ok(match list {
-          Value::List(cons) => match cons.into_iter().nth(index as usize) {
-            Some(v) => v.clone(),
-            None => Value::Nil
-          },
-          Value::Nil => Value::Nil,
-          _ => panic!("Argument validation didn't work properly"),
-        });
+        return Ok(list.into_iter().nth(index as usize).map(|v| v.clone()).unwrap_or(Value::Nil));
       }));
 
   entries.insert(
@@ -164,17 +139,11 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("sort", args, 0)?;
 
-        return Ok(match list {
-          Value::List(cons) => {
-            let mut v: Vec<&Value> = cons.into_iter().collect();
+        let mut v: Vec<Value> = list.into_iter().collect();
 
-            v.sort();
+        v.sort();
 
-            vec_refs_to_cons(&v)
-          },
-          Value::Nil => Value::Nil,
-          _ => panic!("Argument validation didn't work properly"),
-        });
+        return Ok(Value::List(v.into_iter().collect()));
       }));
     
 
@@ -184,17 +153,11 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("reverse", args, 0)?;
 
-        return Ok(match list {
-          Value::List(cons) => {
-            let mut v: Vec<&Value> = cons.into_iter().collect();
+        let mut v: Vec<Value> = list.into_iter().collect();
 
-            v.reverse();
+        v.reverse();
 
-            vec_refs_to_cons(&v)
-          },
-          Value::Nil => Value::Nil,
-          _ => panic!("Argument validation didn't work properly"),
-        });
+        return Ok(Value::List(v.into_iter().collect()));
       }));
   
   entries.insert(
@@ -204,61 +167,34 @@ pub fn default_env() -> Env {
         let func = require_parameter("map", args, 0)?;
         let list = require_list_parameter("map", args, 1)?;
 
-        Ok(match list {
-          Value::List(cons) => {
-            let mut result_vec = vec![];
+        return list.into_iter()
+          .map(|val| {
+            let expr = Value::List([ func.clone(), val.clone() ].into_iter().collect());
 
-            for v in cons.into_iter() {
-              let expr = Value::List(Rc::new(ConsCell {
-                car: func.clone(),
-                cdr: Some(Rc::new(ConsCell {
-                  car: v.clone(),
-                  cdr: None
-                }))
-              }));
-
-              result_vec.push(eval(env.clone(), &expr)?);
-            }
-
-            vec_to_cons(&result_vec)
-          },
-          Value::Nil => list.clone(),
-          _ => panic!("Argument validation didn't work properly"),
-        })
+            eval(env.clone(), &expr)
+          })
+          .collect::<Result<List,RuntimeError>>()
+          .map(|l| Value::List(l));
       }));
 
     
-  entries.insert(
-    String::from("filter"),
-    Value::NativeFunc(
-      |env, args| {
-        let func = require_parameter("filter", args, 0)?;
-        let list = require_list_parameter("filter", args, 1)?;
+  // entries.insert(
+  //   String::from("filter"),
+  //   Value::NativeFunc(
+  //     |env, args| {
+  //       let func = require_parameter("filter", args, 0)?;
+  //       let list = require_list_parameter("filter", args, 1)?;
+        
+  //       return list.into_iter()
+  //         .filter(|val: &&Value| -> Result<bool,RuntimeError> {
+  //           let expr = Value::List([ func.clone(), *val.clone() ].into_iter().collect());
+  //           let res = eval(env.clone(), &expr)?;
 
-        Ok(match list {
-          Value::List(cons) => {
-            let mut result_vec = vec![];
-
-            for v in cons.into_iter() {
-              let expr = Value::List(Rc::new(ConsCell {
-                car: func.clone(),
-                cdr: Some(Rc::new(ConsCell {
-                  car: v.clone(),
-                  cdr: None
-                }))
-              }));
-
-              if eval(env.clone(), &expr)?.is_truthy() {
-                result_vec.push(v.clone());
-              }
-            }
-
-            vec_to_cons(&result_vec)
-          },
-          Value::Nil => list.clone(),
-          _ => panic!("Argument validation didn't work properly"),
-        })
-      }));
+  //           Ok(res.is_truthy())
+  //         })
+  //         .collect::<Result<List,RuntimeError>>()
+  //         .map(|l| Value::List(l));
+  //     }));
 
   entries.insert(
     String::from("length"),
@@ -266,11 +202,7 @@ pub fn default_env() -> Env {
       |_env, args| {
         let list = require_list_parameter("length", args, 0)?;
 
-        return match list {
-          Value::List(cons) => Ok(Value::Int(cons.into_iter().len() as i32)),
-          Value::Nil => Ok(Value::Int(0)),
-          _ => panic!("Argument validation didn't work properly"),
-        };
+        return Ok(Value::Int(list.into_iter().len() as i32));
       }));
 
   entries.insert(
@@ -468,14 +400,7 @@ pub fn default_env() -> Env {
         let func = require_parameter("apply", args, 0)?;
         let params = require_list_parameter("apply", args, 1)?;
 
-        eval(env.clone(), &Value::List(Rc::new(ConsCell {
-          car: func.clone(),
-          cdr: match params {
-            Value::List(cons) => Some(cons.clone()),
-            Value::Nil => None,
-            _ => panic!("Argument validation didn't work properly"),
-          }
-        })))
+        eval(env.clone(), &Value::List(params.cons(func.clone())))
       }));
     
   Env {

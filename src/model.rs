@@ -1,19 +1,21 @@
 use std::rc::Rc;
 use std::{fmt::{Debug, Display}, collections::HashMap};
-use std::{borrow::Borrow, cmp::Ordering, cell::RefCell};
+use std::{cmp::Ordering, cell::RefCell};
+
+pub use list::List;
+
 
 /// `Value` encompasses all possible Lisp values, including atoms, lists, and 
 /// others.
 #[derive(Clone)]
 pub enum Value {
-  Nil,
   True,
   False,
   Int(i32),
   Float(f32),
   String(String),
   Symbol(String),
-  List(Rc<ConsCell>),
+  List(List),
   NativeFunc(NativeFunc),
   Lambda(Lambda),
   TailCall {
@@ -23,15 +25,17 @@ pub enum Value {
 }
 
 impl Value {
+  
+  pub const Nil: Value = Value::List(List::Nil);
 
   pub fn type_name(&self) -> &str {
     match self {
       Value::NativeFunc(_) => "function",
       Value::Lambda(_) => "function",
-      Value::Nil => "NIL",
       Value::True => "T",
       Value::False => "F",
       Value::String(_) => "string",
+      Value::List(List::Nil) => "nil",
       Value::List(_) => "list",
       Value::Int(_) => "integer",
       Value::Float(_) => "float",
@@ -49,7 +53,7 @@ impl Value {
 
   pub fn is_truthy(&self) -> bool {
     match self {
-      Value::Nil => false,
+      Value::List(List::Nil) => false,
       Value::False => false,
       _ => true,
     }
@@ -76,7 +80,7 @@ impl Value {
     }
   }
 
-  pub fn as_list(&self) -> Option<Rc<ConsCell>> {
+  pub fn as_list(&self) -> Option<List> {
     match self {
       Value::List(list) => Some(list.clone()),
       _ => None,
@@ -102,7 +106,6 @@ impl Display for Value {
   fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
     match self {
       Value::NativeFunc(_) => write!(formatter, "<native_function>"),
-      Value::Nil => write!(formatter, "NIL"),
       Value::True => write!(formatter, "T"),
       Value::False => write!(formatter, "F"),
       Value::Lambda(n) => {
@@ -110,7 +113,7 @@ impl Display for Value {
         return write!(formatter, "<func:(lambda {} {})>", n.argnames, &body_str[1..body_str.chars().count() - 1]);
       },
       Value::String(n) => write!(formatter, "\"{}\"", n),
-      Value::List(n) => write!(formatter, "({})", n),
+      Value::List(n) => write!(formatter, "{}", n),
       Value::Int(n) => write!(formatter, "{}", n),
       Value::Float(n) => write!(formatter, "{}", n),
       Value::Symbol(n) => write!(formatter, "{}", n),
@@ -123,7 +126,6 @@ impl Debug for Value {
   fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
     match self {
       Value::NativeFunc(_) => write!(formatter, "<native_function>"),
-      Value::Nil => write!(formatter, "Value::Nil"),
       Value::True => write!(formatter, "Value::True"),
       Value::False => write!(formatter, "Value::False"),
       Value::Lambda(n) => write!(formatter, "Value::Lambda({:?})", n),
@@ -141,12 +143,11 @@ impl PartialEq for Value {
   fn eq(&self, other: &Self) -> bool {
     match self {
       Value::NativeFunc(_) => false,
-      Value::Nil =>  match *other { Value::Nil => true, _ => false },
       Value::True => match *other { Value::True => true, _ => false },
       Value::False => match *other { Value::False => true, _ => false },
       Value::Lambda(n) =>      match other { Value::Lambda(o) =>      n == o, _ => false },
       Value::String(n) =>      match other { Value::String(o) =>      n == o, _ => false },
-      Value::List(n) =>  match other { Value::List(o) =>  n == o, _ => false },
+      Value::List(n) =>          match other { Value::List(o) =>          n == o, _ => false },
       Value::Int(n) =>            match other { Value::Int(o) =>            n == o, _ => false },
       Value::Float(n) =>          match other { Value::Float(o) =>          n == o, _ => false },
       Value::Symbol(n) =>      match other { Value::Symbol(o) =>      n == o, _ => false },
@@ -161,13 +162,6 @@ impl Eq for Value {}
 impl PartialOrd for Value {
   fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
     match self {
-      Value::Nil => {
-        if other.is_truthy() {
-          return Some(Ordering::Less);
-        } else {
-          return Some(Ordering::Equal);
-        }
-      },
       Value::True => {
         if other.is_truthy() {
           return Some(Ordering::Equal);
@@ -213,66 +207,144 @@ impl Ord for Value {
   }
 }
 
-/// A `ConsCell` is effectively a linked-list node, where the value in each node
-/// is a lisp `Value`. To be used as a true "list", the ConsCell must be wrapped
-/// in Value::List().
-#[derive(Debug,PartialEq)]
-pub struct ConsCell {
-  pub car: Value,
-  pub cdr: Option<Rc<ConsCell>>,
-}
 
-impl<'a> ConsCell {
-  pub fn into_iter(cell: &'a ConsCell) -> ConsIterator<'a> {
-    ConsIterator(Some(cell))
+mod list {
+
+  use super::RuntimeError;
+  use std::iter::FromIterator;
+  use super::Value;
+  use std::fmt::Display;
+  use std::rc::Rc;
+  use std::cell::RefCell;
+
+  #[derive(Debug,PartialEq,Eq,Clone)]
+  pub struct List {
+    head: Option<Rc<RefCell<ConsCell>>>
   }
-}
+  
+  impl List {
+    pub const Nil: List = List { head: None };
 
-impl Display for ConsCell {
-  fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-    match self.cdr.as_ref() {
-      Some(cdr) => write!(formatter, "{} {}", self.car, cdr),
-      None => write!(formatter, "{}", self.car)
+    pub fn car(&self) -> Result<Value,RuntimeError> {
+      self.head.as_ref().map(|rc| rc.borrow().car.clone()).ok_or(RuntimeError { msg: String::from("Attempted to apply car on nil") })
     }
-  }
-}
-
-impl<'a> IntoIterator for &'a ConsCell {
-  type Item = &'a Value;
-  type IntoIter = ConsIterator<'a>;
-
-  fn into_iter(self) -> Self::IntoIter {
-    ConsIterator(Some(self))
-  }
-}
-
-pub struct ConsIterator<'a>(Option<&'a ConsCell>);
-
-impl<'a> Iterator for ConsIterator<'a> {
-  type Item = &'a Value;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    self.0.map(|cons| {
-      let val = &cons.car;
-
-      self.0 = cons.cdr.as_ref().map(|rc: &Rc<ConsCell>| &*rc.borrow());
-
-      return val;
-    })
-  }
-}
-
-impl<'a> ExactSizeIterator for ConsIterator<'a> {
-  fn len(&self) -> usize {
-    let mut cons = self.0;
-    let mut length = 0;
-
-    while cons.is_some() {
-      cons = cons.unwrap().cdr.as_ref().map(|rc: &Rc<ConsCell>| &*rc.borrow());
-      length += 1;
+    pub fn cdr(&self) -> List {
+      List { head: self.head.as_ref().map(|rc| rc.borrow().cdr.as_ref().map(|cdr| cdr.clone())).flatten() }
     }
 
-    return length;
+    pub fn cons(&self, val: Value) -> List {
+      List {
+        head: Some(Rc::new(RefCell::new(ConsCell {
+          car: val,
+          cdr: self.head.clone()
+        })))
+      }
+    }
+  }
+
+  /// A `ConsCell` is effectively a linked-list node, where the value in each node
+  /// is a lisp `Value`. To be used as a true "list", the ConsCell must be wrapped
+  /// in Value::List().
+  #[derive(Debug,PartialEq,Eq)]
+  struct ConsCell {
+    pub car: Value,
+    pub cdr: Option<Rc<RefCell<ConsCell>>>,
+  }
+
+  impl Display for List {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+      if let Some(head) = &self.head {
+        write!(formatter, "({})", head.as_ref().borrow())
+      } else {
+        write!(formatter, "NIL")
+      }
+    }
+  }
+
+  impl Display for ConsCell {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+      match self.cdr.as_ref() {
+        Some(cdr) => write!(formatter, "{} {}", self.car, cdr.borrow()),
+        None => write!(formatter, "{}", self.car)
+      }
+    }
+  }
+
+  impl<'a> List {
+    pub fn into_iter(list: &'a List) -> ConsIterator {
+      ConsIterator(list.head.clone())
+    }
+  }
+
+  impl<'a> IntoIterator for &'a List {
+    type Item = Value;
+    type IntoIter = ConsIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+      ConsIterator(self.head.clone())
+    }
+  }
+
+  #[derive(Clone)]
+  pub struct ConsIterator(Option<Rc<RefCell<ConsCell>>>);
+
+  impl Iterator for ConsIterator {
+    type Item = Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+      self.0.clone().map(|cons| {
+        let val = cons.borrow().car.clone();
+
+        self.0 = cons.borrow().cdr.clone();
+
+        return val;
+      })
+    }
+  }
+
+  impl ExactSizeIterator for ConsIterator {
+    fn len(&self) -> usize {
+      let mut length: usize = 0;
+
+      self.clone().for_each(|_| length += 1);
+
+      return length;
+    }
+  }
+
+  impl FromIterator<Value> for List {
+    fn from_iter<I: IntoIterator<Item=Value>>(iter: I) -> Self {
+        let mut new_list = List { head: None };
+        let mut tail: Option<Rc<RefCell<ConsCell>>> = None;
+
+        for val in iter {
+          let new_cons = Rc::new(RefCell::new(ConsCell {
+            car: val,
+            cdr: None,
+          }));
+
+          if new_list.head.is_none() {
+            new_list.head = Some(new_cons.clone());
+            tail = Some(new_cons.clone());
+          }
+
+          let new_tail = new_cons.clone();
+
+          if let Some(cons) = tail {
+            cons.as_ref().borrow_mut().cdr = Some(new_cons);
+          }
+
+          tail = Some(new_tail);
+        }
+
+        return new_list;
+    }
+  }
+  
+  impl<'a> FromIterator<&'a Value> for List {
+    fn from_iter<I: IntoIterator<Item=&'a Value>>(iter: I) -> Self {
+        iter.into_iter().map(|v| v.clone()).collect()
+    }
   }
 }
 
