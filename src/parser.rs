@@ -112,7 +112,7 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
     })
 }
 
-const SPECIAL_TOKENS: [&str;3] = [ "(", ")", "'" ];
+const SPECIAL_TOKENS: [&str;4] = [ "(", ")", "'", "..." ];
 
 fn is_symbol(c: char) -> bool {
   !c.is_numeric() && !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| t.chars().any(|other| other == c))
@@ -184,8 +184,6 @@ fn tokenize_complex_expression() {
           "(", "(", "==", "n", "1", ")", "1", ")", 
           "(", "T", "(", "fib-normal", "n", ")", ")", ")", ")", ")"]);
 }
-
-
 
 /// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
 /// are more than one when the base string has more than one independent 

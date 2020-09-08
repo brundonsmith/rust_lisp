@@ -178,8 +178,21 @@ fn tail_call_test() {
       (recurse-test 1000))
   ");
 
-  assert_eq!(result, Value::Int(0))
+  assert_eq!(result, Value::Int(0));
 }
+
+#[test]
+fn rest_parameters_test() {
+  let result = eval_str("
+    (begin
+      (defun foo (a b ...)
+        ...)
+      
+      (foo 1 2 3 4 5))");
+
+  assert_eq!(result, lisp! { (3 4 5) });
+}
+
 
 fn eval_str(source: &str) -> Value {
   let ast = parse(source).next().unwrap().unwrap();

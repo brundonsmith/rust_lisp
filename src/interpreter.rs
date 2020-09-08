@@ -263,9 +263,15 @@ fn call_function(env: Rc<RefCell<Env>>, func: &Value, args: Vec<Result<Value,Run
       // bind args
       let mut entries: HashMap<String,Value> = HashMap::new();
       
-      for (arg_name, arg_value) in argnames.into_iter().zip(args) {
+      for (index, arg_name) in argnames.into_iter().enumerate() {
         let name = arg_name.as_symbol().unwrap();
-        entries.insert(name, arg_value?.clone());
+
+        if name == "..." {  // rest parameters
+          entries.insert(String::from("..."), Value::List(args.into_iter().skip(index).filter_map(|a| a.clone().ok()).collect::<List>()));
+          break;
+        } else {
+          entries.insert(name, args[index].clone()?);
+        }
       }
 
       let arg_env = Rc::new(RefCell::new(Env {

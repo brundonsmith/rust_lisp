@@ -1,8 +1,10 @@
 - Macros
 - Backtick (with escapes)
-- Rest arguments
 - Optional arguments
 - Some kind of key/value structure
 - Ensure reference cycles are handled
 - Rust macro for interop
 - Make strings immutable?
+- Use plain string references for symbols
+- Add support to lisp! for: ' ` , ... ?predicates
+- Add builtin function to get system time
