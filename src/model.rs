@@ -145,12 +145,12 @@ impl PartialEq for Value {
       Value::NativeFunc(_) => false,
       Value::True => match *other { Value::True => true, _ => false },
       Value::False => match *other { Value::False => true, _ => false },
-      Value::Lambda(n) =>      match other { Value::Lambda(o) =>      n == o, _ => false },
-      Value::String(n) =>      match other { Value::String(o) =>      n == o, _ => false },
-      Value::List(n) =>          match other { Value::List(o) =>          n == o, _ => false },
-      Value::Int(n) =>            match other { Value::Int(o) =>            n == o, _ => false },
-      Value::Float(n) =>          match other { Value::Float(o) =>          n == o, _ => false },
-      Value::Symbol(n) =>      match other { Value::Symbol(o) =>      n == o, _ => false },
+      Value::Lambda(n) => match other { Value::Lambda(o) => n == o, _ => false },
+      Value::String(n) => match other { Value::String(o) => n == o, _ => false },
+      Value::List(n) => match other { Value::List(o) => n == o, _ => false },
+      Value::Int(n) => match other { Value::Int(o) => n == o, _ => false },
+      Value::Float(n) => match other { Value::Float(o) => n == o, _ => false },
+      Value::Symbol(n) => match other { Value::Symbol(o) => n == o, _ => false },
       Value::TailCall { func, args } => match other { Value::TailCall { func: func2, args: args2 } => func == func2 && args == args2, _ => false },
     }
   }
@@ -331,7 +331,6 @@ mod list {
           // if this is the first cell, put it in the List
           if new_list.head.is_none() {
             new_list.head = Some(new_cons.clone());
-            tail = Some(new_cons.clone());
           // otherwise, put it in the current tail cell
           } else if let Some(tail_cons) = tail {
             tail_cons.as_ref().borrow_mut().cdr = Some(new_cons);
@@ -362,7 +361,7 @@ pub struct Lambda {
 
 impl PartialEq for Lambda {
   fn eq(&self, other: &Self) -> bool {
-    false // TODO
+    self.closure.as_ptr() == other.closure.as_ptr() && self.argnames == other.argnames && self.body == other.body
   }
 }
 
