@@ -325,19 +325,16 @@ mod list {
             cdr: None,
           }));
 
-          // the current cell is the going to be the new tail
-          let new_tail = new_cons.clone();
-
           // if this is the first cell, put it in the List
           if new_list.head.is_none() {
             new_list.head = Some(new_cons.clone());
           // otherwise, put it in the current tail cell
           } else if let Some(tail_cons) = tail {
-            tail_cons.as_ref().borrow_mut().cdr = Some(new_cons);
+            tail_cons.as_ref().borrow_mut().cdr = Some(new_cons.clone());
           }
 
-          // move the tail reference to the new cell
-          tail = Some(new_tail);
+          // the current cell is the new tail
+          tail = Some(new_cons);
         }
 
         return new_list;
