@@ -4,7 +4,7 @@ mod parser;
 mod default_environment;
 
 pub use parser::parse;
-pub use interpreter::eval;
+pub use interpreter::{eval,eval_block};
 pub use default_environment::default_env;
 
 pub mod model;
@@ -26,17 +26,15 @@ pub fn start_repl(env: Option<Env>) {
 
     let mut buf = String::new();
     io::stdin().read_line(&mut buf).unwrap();
-      
-    for expr in parse(&buf) {
-      match expr {
-        Ok(e) => {
-          match eval(env_rc.clone(), &e) {
-            Ok(val) => println!("{}", val),
-            Err(e) => println!("{}", e),
-          }
-        },
-        Err(e) => println!("{}", e),
-      }
-    }
+
+    let res = eval_block(
+      env_rc.clone(),
+      parse(&buf)
+        .filter_map(|a| a.ok().clone()));
+
+    match res {
+      Ok(val) => println!("{}", val),
+      Err(e) => println!("{}", e),
+    };
   }
 }

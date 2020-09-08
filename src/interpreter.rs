@@ -2,15 +2,18 @@
 use crate::{model::{Value, Env, RuntimeError, Lambda, List}};
 use std::{collections::HashMap, rc::Rc, cell::{RefCell}};
 
-/// Evaluate a given Lisp expression in the context of a given environment.
+/// Evaluate a single Lisp expression in the context of a given environment.
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeError> {
   eval_inner(env, expression, false, false)
 }
 
-/// Treat the given expression as a cons list of expressions (a function body, 
-/// for example). Each expression is evaluated in order and the final one's 
-/// return value is returned.
-fn evaluate_block(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
+/// Evaluate a series of s-expressions. Each expression is evaluated in 
+/// order and the final one's return value is returned.
+pub fn eval_block(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>) -> Result<Value,RuntimeError> {
+  eval_block_inner(env, clauses, false, false)
+}
+
+fn eval_block_inner(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
 
   let mut current_expr: Option<Value> = None;
   for clause in clauses {
@@ -135,13 +138,13 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
           let body = Value::List(list.cdr().cdr());
 
-          evaluate_block(let_env.clone(), body.as_list().unwrap().into_iter(), found_tail, in_func)
+          eval_block_inner(let_env.clone(), body.as_list().unwrap().into_iter(), found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "begin" => {
           let body = Value::List(list.cdr());
 
-          evaluate_block(env.clone(), body.as_list().unwrap().into_iter(), found_tail, in_func)
+          eval_block_inner(env.clone(), body.as_list().unwrap().into_iter(), found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "cond" => {
@@ -279,7 +282,7 @@ fn call_function(env: Rc<RefCell<Env>>, func: &Value, args: Vec<Result<Value,Run
       }));
           
       // evaluate each line of body
-      evaluate_block(arg_env.clone(), lamb.body.as_list().unwrap().into_iter(), false, true)
+      eval_block_inner(arg_env.clone(), lamb.body.as_list().unwrap().into_iter(), false, true)
     }
     _ => Err(RuntimeError { msg: String::from("Argument 0 is not callable") })
   }
