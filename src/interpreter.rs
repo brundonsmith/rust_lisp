@@ -32,6 +32,13 @@ fn eval_block_inner(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>, f
   return eval_inner(env.clone(), &current_expr.unwrap(), found_tail, in_func);
 }
 
+/// `found_tail` and `in_func` are used when locating the tail position for 
+/// tail-call optimization. Candidates are not eligible if a) we aren't already 
+/// inside a function call, or b) we've already found the tail inside the current
+/// function call. `found_tail` is currently overloaded inside special forms to 
+/// factor out function calls in, say, the conditional slot, which are not 
+/// eligible to be the tail-call based on their position. A future refactor hopes
+/// to make things a little more semantic.
 fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
 
   let result: Result<Value,RuntimeError> = match expression {
@@ -240,6 +247,9 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
   return result;
 }
 
+/// Calling a function is separated from the main `eval_inner()` function
+/// so that tail calls can be evaluated without just returning themselves 
+/// as-is as a tail-call.
 fn call_function(env: Rc<RefCell<Env>>, func: &Value, args: Vec<Result<Value,RuntimeError>>) -> Result<Value, RuntimeError> {
   match func {
 
