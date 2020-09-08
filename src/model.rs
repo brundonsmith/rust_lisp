@@ -40,7 +40,7 @@ impl Value {
       Value::Int(_) => "integer",
       Value::Float(_) => "float",
       Value::Symbol(_) => "symbol",
-      Value::TailCall { func, args } => "tail call",
+      Value::TailCall { func: _, args: _ } => "tail call",
     }
   }
 
@@ -191,7 +191,7 @@ impl PartialOrd for Value {
       Value::NativeFunc(_) => None,
       Value::Lambda(_) => None,
       Value::List(_) => None,
-      Value::TailCall { func, args } => None,
+      Value::TailCall { func: _, args: _ } => None,
     }
   }
 }
