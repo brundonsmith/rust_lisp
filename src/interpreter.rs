@@ -10,11 +10,10 @@ pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value,RuntimeEr
 /// Treat the given expression as a cons list of expressions (a function body, 
 /// for example). Each expression is evaluated in order and the final one's 
 /// return value is returned.
-fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
+fn evaluate_block(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
 
   let mut current_expr: Option<Value> = None;
-  let body_list = body.as_list().unwrap();
-  for line in body_list.into_iter() {
+  for clause in clauses {
     if let Some(expr) = current_expr {
       match eval_inner(env.clone(), &expr, true, in_func) {
         Ok(_) => (),
@@ -24,7 +23,7 @@ fn evaluate_block(env: Rc<RefCell<Env>>, body: &Value, found_tail: bool, in_func
       }
     }
 
-    current_expr = Some(line);
+    current_expr = Some(clause);
   }
 
   return eval_inner(env.clone(), &current_expr.unwrap(), found_tail, in_func);
@@ -136,13 +135,13 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
           let body = Value::List(list.cdr().cdr());
 
-          evaluate_block(let_env.clone(), &body, found_tail, in_func)
+          evaluate_block(let_env.clone(), body.as_list().unwrap().into_iter(), found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "begin" => {
           let body = Value::List(list.cdr());
 
-          evaluate_block(env.clone(), &body, found_tail, in_func)
+          evaluate_block(env.clone(), body.as_list().unwrap().into_iter(), found_tail, in_func)
         },
 
         Value::Symbol(symbol) if symbol == "cond" => {
@@ -280,7 +279,7 @@ fn call_function(env: Rc<RefCell<Env>>, func: &Value, args: Vec<Result<Value,Run
       }));
           
       // evaluate each line of body
-      evaluate_block(arg_env.clone(), &lamb.body, false, true)
+      evaluate_block(arg_env.clone(), lamb.body.as_list().unwrap().into_iter(), false, true)
     }
     _ => Err(RuntimeError { msg: String::from("Argument 0 is not callable") })
   }
