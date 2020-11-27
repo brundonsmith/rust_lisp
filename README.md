@@ -13,7 +13,7 @@ library in a larger application for scripting purposes. Goals:
 
 ```rust
 [dependencies]
-rust_lisp = "0.1.0"
+rust_lisp = "0.2.0"
 ```
 
 ```rust
