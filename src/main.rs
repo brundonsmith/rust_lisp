@@ -19,7 +19,7 @@ fn main() {
 
             println!(
                 "{}",
-                eval_block(env_rc.clone(), parse(&code).filter_map(|a| a.ok().clone())).unwrap()
+                eval_block(env_rc, parse(&code).filter_map(|a| a.ok())).unwrap()
             );
         }
         None => start_repl(None),

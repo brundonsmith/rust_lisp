@@ -5,8 +5,29 @@ use std::{
     error::Error,
     fmt::{Debug, Display},
 };
+use cfg_if::cfg_if;
+cfg_if! {
+    if #[cfg(feature = "bigint")] {
+        use num_bigint::BigInt;
+        use num_traits::ToPrimitive;
+    }
+}
 
 pub use list::List;
+
+cfg_if! {
+    if      #[cfg(feature = "bigint")] { pub type IntType = BigInt; }
+    else if #[cfg(feature = "i128")]   { pub type IntType = i128;   }
+    else if #[cfg(feature = "i64")]    { pub type IntType = i64;    }
+    else if #[cfg(feature = "i16")]    { pub type IntType = i16;    }
+    else if #[cfg(feature = "i8")]     { pub type IntType = i8;     }
+    else                               { pub type IntType = i32;    }
+}
+
+cfg_if! {
+    if #[cfg(feature = "f64")] { pub type FloatType = f64; }
+    else                       { pub type FloatType = f32; }
+}
 
 /// `Value` encompasses all possible Lisp values, including atoms, lists, and
 /// others.
@@ -14,8 +35,8 @@ pub use list::List;
 pub enum Value {
     True,
     False,
-    Int(i32),
-    Float(f32),
+    Int(IntType),
+    Float(FloatType),
     String(String),
     Symbol(String),
     List(List),
@@ -51,21 +72,18 @@ impl Value {
     }
 
     pub fn is_truthy(&self) -> bool {
-        match self {
-            Value::List(List::NIL) => false,
-            Value::False => false,
-            _ => true,
-        }
+        self != &Value::List(List::NIL) && self != &Value::False
     }
 
-    pub fn as_int(&self) -> Option<i32> {
+    #[allow(clippy::clone_on_copy)]
+    pub fn as_int(&self) -> Option<IntType> {
         match self {
-            Value::Int(n) => Some(*n),
+            Value::Int(n) => Some(n.clone()),
             _ => None,
         }
     }
 
-    pub fn as_float(&self) -> Option<f32> {
+    pub fn as_float(&self) -> Option<FloatType> {
         match self {
             Value::Float(n) => Some(*n),
             _ => None,
@@ -153,14 +171,8 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Value::NativeFunc(_) => false,
-            Value::True => match *other {
-                Value::True => true,
-                _ => false,
-            },
-            Value::False => match *other {
-                Value::False => true,
-                _ => false,
-            },
+            Value::True => matches!(other, &Value::True),
+            Value::False => matches!(other, &Value::False),
             Value::Lambda(n) => match other {
                 Value::Lambda(o) => n == o,
                 _ => false,
@@ -203,16 +215,16 @@ impl PartialOrd for Value {
         match self {
             Value::True => {
                 if other.is_truthy() {
-                    return Some(Ordering::Equal);
+                    Some(Ordering::Equal)
                 } else {
-                    return Some(Ordering::Greater);
+                    Some(Ordering::Greater)
                 }
             }
             Value::False => {
                 if !other.is_truthy() {
-                    return Some(Ordering::Equal);
+                    Some(Ordering::Equal)
                 } else {
-                    return Some(Ordering::Greater);
+                    Some(Ordering::Greater)
                 }
             }
             Value::String(n) => {
@@ -231,11 +243,47 @@ impl PartialOrd for Value {
             }
             Value::Int(n) => match other {
                 Value::Int(o) => n.partial_cmp(o),
-                Value::Float(o) => n.partial_cmp(&(o.round() as i32)),
+                Value::Float(o) => {
+                    cfg_if! {
+                        if #[cfg(feature = "bigint")] {
+                            n.partial_cmp(&BigInt::from(o.round() as i64))
+                        } else {
+                            n.partial_cmp(&(o.round() as IntType))
+                        }
+                    }
+                },
                 _ => None,
             },
             Value::Float(n) => match other {
-                Value::Int(o) => n.partial_cmp(&(*o as f32)),
+                Value::Int(o) => {
+                    let o_float: FloatType;
+
+                    // At these situations I think to myself that adding support for BigInt was a
+                    // mistake
+                    cfg_if! {
+                        if #[cfg(feature = "bigint")] { // Special case for `bigint`
+
+                            #[cfg(feature = "f64")]
+                            if let Some(f) = o.to_f64() {
+                                o_float = f;
+                            } else {
+                                return None
+                            }
+
+                            #[cfg(not(feature = "f64"))]
+                            if let Some(f) = o.to_f32() {
+                                o_float = f;
+                            } else {
+                                return None
+                            }
+
+                        } else { // Regular case for primitives
+                            o_float = *o as FloatType;
+                        }
+                    }
+
+                    n.partial_cmp(&(o_float))
+                },
                 Value::Float(o) => n.partial_cmp(o),
                 _ => None,
             },
@@ -286,7 +334,7 @@ mod list {
                 head: self
                     .head
                     .as_ref()
-                    .map(|rc| rc.borrow().cdr.as_ref().map(|cdr| cdr.clone()))
+                    .map(|rc| rc.borrow().cdr.as_ref().cloned())
                     .flatten(),
             }
         }
@@ -356,7 +404,7 @@ mod list {
 
                 self.0 = cons.borrow().cdr.clone();
 
-                return val;
+                val
             })
         }
     }
@@ -367,7 +415,7 @@ mod list {
 
             self.clone().for_each(|_| length += 1);
 
-            return length;
+            length
         }
     }
 
@@ -395,13 +443,13 @@ mod list {
                 tail = Some(new_cons);
             }
 
-            return new_list;
+            new_list
         }
     }
 
     impl<'a> FromIterator<&'a Value> for List {
         fn from_iter<I: IntoIterator<Item = &'a Value>>(iter: I) -> Self {
-            iter.into_iter().map(|v| v.clone()).collect()
+            iter.into_iter().cloned().collect()
         }
     }
 }
@@ -430,9 +478,17 @@ pub struct RuntimeError {
     pub msg: String,
 }
 
+impl RuntimeError {
+  pub fn new(s: impl Into<String>) -> RuntimeError {
+    RuntimeError {
+      msg: s.into()
+    }
+  }
+}
+
 impl Display for RuntimeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        return write!(formatter, "Runtime error: {}", self.msg);
+        write!(formatter, "Runtime error: {}", self.msg)
     }
 }
 
@@ -455,11 +511,11 @@ impl Env {
     /// runs out of environments.
     pub fn find(&self, symbol: &str) -> Option<Value> {
         if self.entries.contains_key(symbol) {
-            return self.entries.get(symbol).map(|v| v.clone()); // clone the Rc
+            self.entries.get(symbol).cloned() // clone the Rc
         } else if self.parent.is_some() {
-            return self.parent.as_ref().unwrap().borrow_mut().find(symbol);
+            self.parent.as_ref().unwrap().borrow_mut().find(symbol)
         } else {
-            return None;
+            None
         }
     }
 }
@@ -471,7 +527,7 @@ impl Display for Env {
         output.push_str("Env: ");
         display_one_env_level(self, &mut output, 0);
 
-        return write!(formatter, "{}", &output);
+        write!(formatter, "{}", &output)
     }
 }
 
@@ -493,7 +549,7 @@ fn display_one_env_level(env: &Env, output: &mut String, depth: i32) {
         None => (),
     }
 
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(indent);
-    output.push_str("}");
+    output.push('}');
 }

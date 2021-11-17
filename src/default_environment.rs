@@ -5,6 +5,14 @@ use crate::{
     utils::{require_int_parameter, require_list_parameter, require_parameter},
 };
 use std::collections::HashMap;
+use cfg_if::cfg_if;
+cfg_if! {
+    if #[cfg(feature = "bigint")] {
+        use num_traits::ToPrimitive;
+    } else {
+        use crate::model::IntType;
+    }
+}
 
 /// Initialize an instance of `Env` with several core Lisp functions implemented
 /// in Rust. **Without this, you will only have access to the functions you
@@ -18,7 +26,7 @@ pub fn default_env() -> Env {
             let expr = require_parameter("print", args, 0)?;
 
             println!("{}", &expr);
-            return Ok(expr.clone());
+            Ok(expr.clone())
         }),
     );
 
@@ -99,7 +107,7 @@ pub fn default_env() -> Env {
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("car", args, 0)?;
 
-            return list.car().map(|c| c.clone());
+            list.car()
         }),
     );
 
@@ -108,7 +116,7 @@ pub fn default_env() -> Env {
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("cdr", args, 0)?;
 
-            return Ok(Value::List(list.cdr()));
+            Ok(Value::List(list.cdr()))
         }),
     );
 
@@ -118,26 +126,33 @@ pub fn default_env() -> Env {
             let car = require_parameter("cons", args, 0)?;
             let cdr = require_list_parameter("cons", args, 1)?;
 
-            return Ok(Value::List(cdr.cons(car.clone())));
+            Ok(Value::List(cdr.cons(car.clone())))
         }),
     );
 
     entries.insert(
         String::from("list"),
-        Value::NativeFunc(|_env, args| Ok(Value::List(args.into_iter().collect::<List>()))),
+        Value::NativeFunc(|_env, args| Ok(Value::List(args.iter().collect::<List>()))),
     );
 
     entries.insert(
         String::from("nth"),
         Value::NativeFunc(|_env, args| {
-            let index = require_int_parameter("nth", args, 0)?;
+            cfg_if! {
+                if #[cfg(feature = "bigint")] {
+                    let index = require_int_parameter("nth", args, 0)?
+                        .to_usize()
+                        .ok_or(RuntimeError::new("Failed converting `BigInt` to `usize`"))?;
+                } else {
+                    let index = require_int_parameter("nth", args, 0)? as usize;
+                }
+            }
             let list = require_list_parameter("nth", args, 1)?;
 
-            return Ok(list
+            Ok(list
                 .into_iter()
-                .nth(index as usize)
-                .map(|v| v.clone())
-                .unwrap_or(Value::NIL));
+                .nth(index)
+                .unwrap_or(Value::NIL))
         }),
     );
 
@@ -150,7 +165,7 @@ pub fn default_env() -> Env {
 
             v.sort();
 
-            return Ok(Value::List(v.into_iter().collect()));
+            Ok(Value::List(v.into_iter().collect()))
         }),
     );
 
@@ -163,7 +178,7 @@ pub fn default_env() -> Env {
 
             v.reverse();
 
-            return Ok(Value::List(v.into_iter().collect()));
+            Ok(Value::List(v.into_iter().collect()))
         }),
     );
 
@@ -173,15 +188,15 @@ pub fn default_env() -> Env {
             let func = require_parameter("map", args, 0)?;
             let list = require_list_parameter("map", args, 1)?;
 
-            return list
+            list
                 .into_iter()
                 .map(|val| {
-                    let expr = lisp! { ({func.clone()} {val.clone()}) };
+                    let expr = lisp! { ({func.clone()} {val}) };
 
                     eval(env.clone(), &expr)
                 })
                 .collect::<Result<List, RuntimeError>>()
-                .map(|l| Value::List(l));
+                .map(Value::List)
         }),
     );
 
@@ -208,7 +223,13 @@ pub fn default_env() -> Env {
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("length", args, 0)?;
 
-            return Ok(Value::Int(list.into_iter().len() as i32));
+            cfg_if! {
+                if #[cfg(feature = "bigint")] {
+                    Ok(Value::Int(list.into_iter().len().into()))
+                } else {
+                    Ok(Value::Int(list.into_iter().len() as IntType))
+                }
+            }
         }),
     );
 
@@ -218,9 +239,24 @@ pub fn default_env() -> Env {
             let start = require_int_parameter("range", args, 0)?;
             let end = require_int_parameter("range", args, 1)?;
 
-            Ok(Value::List(
-                (start..end).map(|i| Value::Int(i)).collect::<List>(),
-            ))
+            cfg_if! {
+                if #[cfg(feature = "bigint")] {
+                    let mut i = start.clone();
+                    let mut res = Vec::with_capacity((end.clone() - start)
+                        .to_usize()
+                        .ok_or(RuntimeError::new("Failed converting `BigInt` to `usize`"))?
+                    );
+
+                    while i <= end {
+                        res.push(i.clone());
+                        i += 1;
+                    }
+
+                    Ok(Value::List(res.into_iter().map(Value::Int).collect::<List>()))
+                } else {
+                    Ok(Value::List((start..=end).map(Value::Int).collect::<List>()))
+                }
+            }
         }),
     );
 
@@ -230,24 +266,21 @@ pub fn default_env() -> Env {
             let a = require_parameter("+", args, 0)?;
             let b = require_parameter("+", args, 1)?;
 
-            match (a.as_int(), b.as_int()) {
-                (Some(a), Some(b)) => return Ok(Value::Int(a + b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+                return Ok(Value::Int(a + b))
+            }
 
-            match (a.as_float(), b.as_float()) {
-                (Some(a), Some(b)) => return Ok(Value::Float(a + b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+                return Ok(Value::Float(a + b))
+            }
 
-            match (a.as_string(), b.as_string()) {
-                (Some(a), Some(b)) => return Ok(Value::String(String::from(a) + b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_string(), b.as_string()) {
+                return Ok(Value::String(String::from(a) + b))
+            }
 
-            return Err(RuntimeError {
+            Err(RuntimeError {
                 msg: String::from("Function \"+\" requires arguments to be numbers or strings"),
-            });
+            })
         }),
     );
 
@@ -257,19 +290,17 @@ pub fn default_env() -> Env {
             let a = require_parameter("-", args, 0)?;
             let b = require_parameter("-", args, 1)?;
 
-            match (a.as_int(), b.as_int()) {
-                (Some(a), Some(b)) => return Ok(Value::Int(a - b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+                return Ok(Value::Int(a - b))
+            }
 
-            match (a.as_float(), b.as_float()) {
-                (Some(a), Some(b)) => return Ok(Value::Float(a - b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+                return Ok(Value::Float(a - b))
+            }
 
-            return Err(RuntimeError {
+            Err(RuntimeError {
                 msg: String::from("Function \"-\" requires arguments to be numbers"),
-            });
+            })
         }),
     );
 
@@ -279,19 +310,17 @@ pub fn default_env() -> Env {
             let a = require_parameter("*", args, 0)?;
             let b = require_parameter("*", args, 1)?;
 
-            match (a.as_int(), b.as_int()) {
-                (Some(a), Some(b)) => return Ok(Value::Int(a * b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+                return Ok(Value::Int(a * b))
+            }
 
-            match (a.as_float(), b.as_float()) {
-                (Some(a), Some(b)) => return Ok(Value::Float(a * b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) =  (a.as_float(), b.as_float()) {
+                return Ok(Value::Float(a * b))
+            }
 
-            return Err(RuntimeError {
+            Err(RuntimeError {
                 msg: String::from("Function \"*\" requires arguments to be numbers"),
-            });
+            })
         }),
     );
 
@@ -301,19 +330,17 @@ pub fn default_env() -> Env {
             let a = require_parameter("/", args, 0)?;
             let b = require_parameter("/", args, 1)?;
 
-            match (a.as_int(), b.as_int()) {
-                (Some(a), Some(b)) => return Ok(Value::Int(a / b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+                return Ok(Value::Int(a / b))
+            }
 
-            match (a.as_float(), b.as_float()) {
-                (Some(a), Some(b)) => return Ok(Value::Float(a / b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+                return Ok(Value::Float(a / b))
+            }
 
-            return Err(RuntimeError {
+            Err(RuntimeError {
                 msg: String::from("Function \"/\" requires arguments to be numbers"),
-            });
+            })
         }),
     );
 
@@ -323,14 +350,13 @@ pub fn default_env() -> Env {
             let a = require_parameter("truncate", args, 0)?;
             let b = require_parameter("truncate", args, 1)?;
 
-            match (a.as_int(), b.as_int()) {
-                (Some(a), Some(b)) => return Ok(Value::Int(a / b)),
-                _ => (),
-            };
+            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+                return Ok(Value::Int(a / b))
+            }
 
-            return Err(RuntimeError {
+            Err(RuntimeError {
                 msg: String::from("Function \"truncate\" requires arguments to be integers"),
-            });
+            })
         }),
     );
 
@@ -418,7 +444,7 @@ pub fn default_env() -> Env {
             let func = require_parameter("apply", args, 0)?;
             let params = require_list_parameter("apply", args, 1)?;
 
-            eval(env.clone(), &Value::List(params.cons(func.clone())))
+            eval(env, &Value::List(params.cons(func.clone())))
         }),
     );
 

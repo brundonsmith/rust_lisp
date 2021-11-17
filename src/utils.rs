@@ -1,4 +1,4 @@
-use crate::model::{List, RuntimeError, Value};
+use crate::model::{Value, RuntimeError, List, IntType, FloatType};
 
 // pub struct ArgumentError {
 //   msg: String,
@@ -9,7 +9,7 @@ use crate::model::{List, RuntimeError, Value};
 /// and err if there isn't one.
 pub fn require_parameter<'a>(
     func_name: &str,
-    args: &'a Vec<Value>,
+    args: &'a [Value],
     index: usize,
 ) -> Result<&'a Value, RuntimeError> {
     match args.get(index) {
@@ -29,9 +29,9 @@ pub fn require_parameter<'a>(
 /// of this fails.
 pub fn require_int_parameter(
     func_name: &str,
-    args: &Vec<Value>,
+    args: &[Value],
     index: usize,
-) -> Result<i32, RuntimeError> {
+) -> Result<IntType, RuntimeError> {
     match require_parameter(func_name, args, index) {
         Ok(val) => match val.as_int() {
             Some(x) => Ok(x),
@@ -53,9 +53,9 @@ pub fn require_int_parameter(
 /// of this fails.
 pub fn require_float_parameter(
     func_name: &str,
-    args: &Vec<Value>,
+    args: &[Value],
     index: usize,
-) -> Result<f32, RuntimeError> {
+) -> Result<FloatType, RuntimeError> {
     match require_parameter(func_name, args, index) {
         Ok(val) => match val.as_float() {
             Some(x) => Ok(x),
@@ -77,7 +77,7 @@ pub fn require_float_parameter(
 /// String. Err if any part of this fails.
 pub fn require_string_parameter<'a>(
     func_name: &str,
-    args: &'a Vec<Value>,
+    args: &'a [Value],
     index: usize,
 ) -> Result<&'a str, RuntimeError> {
     match require_parameter(func_name, args, index) {
@@ -101,7 +101,7 @@ pub fn require_string_parameter<'a>(
 /// the case.
 pub fn require_list_parameter<'a>(
     func_name: &str,
-    args: &'a Vec<Value>,
+    args: &'a [Value],
     index: usize,
 ) -> Result<&'a List, RuntimeError> {
     match require_parameter(func_name, args, index) {
