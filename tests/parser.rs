@@ -39,7 +39,7 @@ fn parse_multiple_lines() {
   let ast = parse("
     (print 1)
     (print 2)
-    (print 3)").map(|res| res.unwrap()).collect::<Vec<_>>();
+    (print 3)").collect::<Result<Vec<_>, _>>().unwrap();
 
   assert_eq!(ast, vec![
     lisp! { (print 1) },
