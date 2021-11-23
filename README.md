@@ -2,8 +2,9 @@
 
 # What is this?
 
-This is a Lisp interpreter, written in Rust, intended to be embeddable as a 
+This is a Lisp interpreter, written in Rust, intended to be embeddable as a
 library in a larger application for scripting purposes. Goals:
+
 - Small footprint (both code size and memory usage)
 - No dependencies
 - Easy, ergonomic interop with native Rust functions
@@ -13,7 +14,7 @@ library in a larger application for scripting purposes. Goals:
 
 ```rust
 [dependencies]
-rust_lisp = "0.2.0"
+rust_lisp = "0.5.0"
 ```
 
 ```rust
@@ -38,32 +39,32 @@ fn main() {
 }
 ```
 
-As you can see, the base environment is managed by the user of the library, as 
-is the parsing stage. This is to give the user maximum control, including 
+As you can see, the base environment is managed by the user of the library, as
+is the parsing stage. This is to give the user maximum control, including
 error-handling by way of `Result`s.
 
 # The data model
 
 The heart of the model is `Value`, an enum encompassing every type of valid Lisp
-value. Most of these are trivial, but `Value::List` is not. It holds a 
-recursive `List` data structure which functions internally like a 
-linked-list. `into_iter()` and `from_iter()` have been implemented for `List`, 
-and there is also a `lisp!` macro (see below) which makes working with Lists, 
-in particular, much more conventient.
+value. Most of these are trivial, but `Value::List` is not. It holds a recursive
+`List` data structure which functions internally like a linked-list.
+`into_iter()` and `from_iter()` have been implemented for `List`, and there is
+also a `lisp!` macro (see below) which makes working with Lists, in particular,
+much more conventient.
 
 `Value` does not implement `Copy` because of cases like `Value::List`, so if you
-read the source you'll see lots of `value.clone()`. This almost always amounts 
+read the source you'll see lots of `value.clone()`. This almost always amounts
 to copying a primitive, except in the `Value::List` case where it means cloning
-an internal `Rc` pointer. In all cases, it's considered cheap enough to do liberally.
+an internal `Rc` pointer. In all cases, it's considered cheap enough to do
+liberally.
 
 # The environment and exposing Rust functions
 
-The base environment is managed by the user of the library mainly so that it 
-can be customized. `default_env()` prepopulates the environment with a number 
-of common functions, but these can be omitted (or pared down) if you wish. 
-Adding an entry to the environment is also how you would expose your Rust 
-functions to your scripts, which can take the form of either regular functions 
-or closures:
+The base environment is managed by the user of the library mainly so that it can
+be customized. `default_env()` prepopulates the environment with a number of
+common functions, but these can be omitted (or pared down) if you wish. Adding
+an entry to the environment is also how you would expose your Rust functions to
+your scripts, which can take the form of either regular functions or closures:
 
 ```rust
 fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value,RuntimeError> {
@@ -89,21 +90,23 @@ entries.insert(
 ```
 
 In either case, a native function must have the following function signature:
+
 ```rust
 type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 ```
 
-The first argument is the environment at the time and place of calling 
-(closures are implemented as environment extensions). The second argument is 
-the Vec of evaluated argument values. For convenience, utility functions 
-(`require_parameter()`, `require_int_parameter()`, etc) have been provided for 
-doing basic argument retrieval with error messaging. See 
+The first argument is the environment at the time and place of calling (closures
+are implemented as environment extensions). The second argument is the Vec of
+evaluated argument values. For convenience, utility functions
+(`require_parameter()`, `require_int_parameter()`, etc) have been provided for
+doing basic argument retrieval with error messaging. See
 `default_environment.rs` for examples.
 
 # The `lisp!` macro
 
-A Rust macro, named `lisp!`, is provided which allows the user to embed sanitized
-Lisp syntax inside their Rust code, which will be converted to an AST at compile-time:
+A Rust macro, named `lisp!`, is provided which allows the user to embed
+sanitized Lisp syntax inside their Rust code, which will be converted to an AST
+at compile-time:
 
 ```rust
 fn parse_basic_expression() {
@@ -120,10 +123,12 @@ fn parse_basic_expression() {
 }
 ```
 
-Note that this just gives you a syntax tree (in the form of a `Value`). If you want
-to actually evaluate the expression, you would need to then pass it to `eval()`.
+Note that this just gives you a syntax tree (in the form of a `Value`). If you
+want to actually evaluate the expression, you would need to then pass it to
+`eval()`.
 
-The macro also allows Rust expressions (of type `Value`) to be embedded within the lisp code using `{  }`:
+The macro also allows Rust expressions (of type `Value`) to be embedded within
+the lisp code using `{  }`:
 
 ```rust
 fn parse_basic_expression() {
@@ -138,25 +143,23 @@ fn parse_basic_expression() {
 }
 ```
 
-**NOTE: There is currently a problem with the macro where predicates ending in `?` 
-cannot be used. This is because `?` cannot be a valid part of an identifier in Rust, and 
-so `null?` for example cannot be processed by Rust as a single token. The solution will likely
-involve renaming those predicates to not include `?`. This is why the project is still in version
-`0.X.X` :)**
-
+**NOTE: There is currently a problem with the macro where predicates ending in
+`?` cannot be used. This is because `?` cannot be a valid part of an identifier
+in Rust, and so `null?` for example cannot be processed by Rust as a single
+token. The solution will likely involve renaming those predicates to not include
+`?`. This is why the project is still in version `0.X.X` :)**
 
 # Included functionality
 
-Special forms:
-`define`, `set`, `defun`, `lambda`, `quote`, `let`, `begin`, `cond`, `if`, 
-`and`, `or`
+Special forms: `define`, `set`, `defun`, `lambda`, `quote`, `let`, `begin`,
+`cond`, `if`, `and`, `or`
 
-Functions (in `default_env()`):
-`print`, `null?`, `number?`, `symbol?`, `boolean?`, `procedure?`, `pair?`, 
-`car`, `cdr`, `cons`, `list`, `nth`, `sort`, `reverse`, `map`, `filter`, 
-`length`, `range`, `+`, `-`, `*`, `/`, `truncate`, `not`, `==`, `!=`, `<`, `<=`,
-`>`, `>=`, `apply`, `eval`
+Functions (in `default_env()`): `print`, `null?`, `number?`, `symbol?`,
+`boolean?`, `procedure?`, `pair?`, `car`, `cdr`, `cons`, `list`, `nth`, `sort`,
+`reverse`, `map`, `filter`, `length`, `range`, `+`, `-`, `*`, `/`, `truncate`,
+`not`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `apply`, `eval`
 
 Other features:
+
 - Single-tick quoting
 - Tail-call optimization
