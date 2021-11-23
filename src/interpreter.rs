@@ -58,7 +58,9 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         // special forms
         Value::Symbol(symbol) if symbol == "define" => {
           let cdr = list.cdr();
-          let symbol = cdr.car()?.as_symbol().unwrap();
+          let symbol = cdr.car()?;
+          let symbol = symbol.as_symbol()
+            .ok_or(RuntimeError { msg: format!("Symbol required for definition; received \"{}\", which is a {}", symbol, symbol.type_name()) })?;
           let value_expr = &cdr.cdr().car()?;
           let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
@@ -96,8 +98,11 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
         Value::Symbol(symbol) if symbol == "defun" => {
           let mut list_iter = list.into_iter();
           list_iter.next().unwrap(); // skip "defun"
-          let symbol = list_iter.next().unwrap().as_symbol().unwrap();
-          let argnames = Rc::new(list_iter.next().unwrap().clone());
+          let symbol = list_iter.next().unwrap();
+          let symbol = symbol.as_symbol()
+            .ok_or(RuntimeError { msg: format!("Function name must by a symbol; received \"{}\", which is a {}", symbol, symbol.type_name()) })?;
+          let argnames = Rc::new(list_iter.next()
+            .ok_or(RuntimeError { msg: format!("Expected argument list in function definition for \"{}\"", symbol) })?.clone());
           let body = Rc::new(Value::List(list_iter.map(|v| v.clone()).collect::<List>()));
 
           let lambda = Value::Lambda(Lambda {
