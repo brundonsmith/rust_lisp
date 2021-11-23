@@ -14,8 +14,8 @@ pub fn eval_block(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>) -> 
 }
 
 fn eval_block_inner(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>, found_tail: bool, in_func: bool) -> Result<Value,RuntimeError> {
-
   let mut current_expr: Option<Value> = None;
+
   for clause in clauses {
     if let Some(expr) = current_expr {
       match eval_inner(env.clone(), &expr, true, in_func) {
@@ -28,7 +28,7 @@ fn eval_block_inner(env: Rc<RefCell<Env>>, clauses: impl Iterator<Item=Value>, f
 
     current_expr = Some(clause);
   }
-
+  
   return eval_inner(env.clone(), &current_expr.unwrap(), found_tail, in_func);
 }
 
@@ -48,6 +48,8 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
       Some(expr) => Ok(expr.clone()),
       None => Err(RuntimeError { msg: format!("\"{}\" is not defined", symbol) }),
     },
+
+    Value::List(list) if *list == List::NIL => Ok(Value::NIL),
 
     // s-expression
     Value::List(list) => {
@@ -228,7 +230,6 @@ fn eval_inner(env: Rc<RefCell<Env>>, expression: &Value, found_tail: bool, in_fu
 
             return Ok(expr);
           } else {
-
             let mut res = call_function(env.clone(), &func, args.collect());
             while let Ok(Value::TailCall { func, args }) = res {
               res = call_function(env.clone(), &func, args.iter().map(|arg| Ok(arg.clone())).collect());

@@ -193,6 +193,17 @@ fn rest_parameters_test() {
   assert_eq!(result, lisp! { (3 4 5) });
 }
 
+#[test]
+fn calling_empty_fun() {
+  let result = eval_str("
+    (begin
+      (defun foo () ())
+      
+      (foo))");
+
+  assert_eq!(result, lisp! { () });
+}
+
 
 fn eval_str(source: &str) -> Value {
   let ast = parse(source).next().unwrap().unwrap();
