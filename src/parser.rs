@@ -124,11 +124,7 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item = &'a str> {
 const SPECIAL_TOKENS: [&str; 4] = ["(", ")", "'", "..."];
 
 fn is_symbol_start(c: char) -> bool {
-    !c.is_numeric()
-        && !c.is_whitespace()
-        && !SPECIAL_TOKENS
-            .iter()
-            .any(|t| t.chars().any(|other| other == c))
+    !c.is_numeric() && is_symbolic(c)
 }
 
 fn is_symbolic(c: char) -> bool {
