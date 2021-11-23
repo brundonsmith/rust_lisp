@@ -97,8 +97,8 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
       }
 
       // symbols
-      if is_symbol(ch) {
-        let match_end = match_pred(&code[index..], is_symbol);
+      if is_symbol_start(ch) {
+        let match_end = match_pred(&code[index..], is_symbolic);
 
         if let Some(symbol_last) = match_end {
           let symbol_end = index + symbol_last + 1;
@@ -114,8 +114,12 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item=&'a str> {
 
 const SPECIAL_TOKENS: [&str;4] = [ "(", ")", "'", "..." ];
 
-fn is_symbol(c: char) -> bool {
+fn is_symbol_start(c: char) -> bool {
   !c.is_numeric() && !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| t.chars().any(|other| other == c))
+}
+
+fn is_symbolic(c: char) -> bool {
+  !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| t.chars().any(|other| other == c))
 }
 
 fn match_front(code: &str, segment: &str) -> bool {
@@ -183,6 +187,13 @@ fn tokenize_complex_expression() {
           "(", "(", "==", "n", "0", ")", "0", ")", 
           "(", "(", "==", "n", "1", ")", "1", ")", 
           "(", "T", "(", "fib-normal", "n", ")", ")", ")", ")", ")"]);
+}
+
+#[test]
+fn tokenize_identifier_with_digits() {
+  let tokens: Vec<&str> = tokenize("(i32)").collect();
+
+  assert_eq!(tokens, vec![ "(", "i32", ")" ]);
 }
 
 /// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
