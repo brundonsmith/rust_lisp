@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::{fmt::{Debug, Display}, collections::HashMap};
+use std::{fmt::{Debug, Display}, error::Error, collections::HashMap};
 use std::{cmp::Ordering, cell::RefCell};
 
 pub use list::List;
@@ -374,6 +374,12 @@ impl Display for RuntimeError {
   fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
     return write!(formatter, "Runtime error: {}", self.msg);
   }
+}
+
+impl Error for RuntimeError {
+    fn description(&self) -> &str {
+        &self.msg
+    }
 }
 
 /// An environment of symbol bindings. Used for the base environment, for 
