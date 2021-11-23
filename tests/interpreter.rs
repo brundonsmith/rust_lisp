@@ -1,70 +1,75 @@
-
-use std::{cell::RefCell, rc::Rc};
-use rust_lisp::{model::{Value,List}, lisp};
-use rust_lisp::parse;
-use rust_lisp::eval;
 use rust_lisp::default_env;
+use rust_lisp::eval;
+use rust_lisp::parse;
+use rust_lisp::{
+    lisp,
+    model::{List, Value},
+};
+use std::{cell::RefCell, rc::Rc};
 
 #[test]
 fn eval_basic_expression() {
-  let result = eval_str("(+ (* 1 2) (/ 6 3))");
+    let result = eval_str("(+ (* 1 2) (/ 6 3))");
 
-  assert_eq!(result, Value::Int(4));
+    assert_eq!(result, Value::Int(4));
 }
 
 #[test]
 fn eval_quote_1() {
-  let result = eval_str("(quote \"stuff\")");
+    let result = eval_str("(quote \"stuff\")");
 
-  assert_eq!(result, Value::String(String::from("stuff")));
+    assert_eq!(result, Value::String(String::from("stuff")));
 }
 
 #[test]
 fn eval_quote_2() {
-  let result = eval_str("(quote (1 2 3))");
+    let result = eval_str("(quote (1 2 3))");
 
-  assert_eq!(result, lisp! { (1 2 3) });
+    assert_eq!(result, lisp! { (1 2 3) });
 }
 
 #[test]
 fn eval_quote_tick_list() {
-  let result = eval_str("'(1 2 3)");
+    let result = eval_str("'(1 2 3)");
 
-  assert_eq!(result, lisp! { (1 2 3) });
+    assert_eq!(result, lisp! { (1 2 3) });
 }
 
 #[test]
 fn eval_quote_tick_atom() {
-  let result = eval_str("(nth 0 (list '12))");
+    let result = eval_str("(nth 0 (list '12))");
 
-  assert_eq!(result, Value::Int(12));
+    assert_eq!(result, Value::Int(12));
 }
 
 #[test]
 fn eval_quote_tick_symbol() {
-  let result = eval_str("(nth 0 (list 'foo))");
+    let result = eval_str("(nth 0 (list 'foo))");
 
-  assert_eq!(result, Value::Symbol(String::from("foo")));
+    assert_eq!(result, Value::Symbol(String::from("foo")));
 }
 
 #[test]
 fn eval_let() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (let ((foo 12)
           (bar (+ 4 3))
           (blah \"stuff\"))
       (print foo)
       (print bar)
       (print blah)
-      (list (* foo bar) (+ blah \" also\")))");
+      (list (* foo bar) (+ blah \" also\")))",
+    );
 
-  assert_eq!(result, lisp! { (84 "stuff also") });
+    assert_eq!(result, lisp! { (84 "stuff also") });
 }
 
 #[test]
 #[should_panic]
 fn eval_let_scope() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (let ((foo 12)
             (bar (+ 4 3))
@@ -73,52 +78,59 @@ fn eval_let_scope() {
         (print bar)
         (print blah))
 
-      (* foo bar))");
+      (* foo bar))",
+    );
 
     assert_eq!(result, lisp! { (84 "stuff also") });
 }
 
 #[test]
 fn eval_set_global() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (define foo 12)
 
       (let ((bar 25))
         (set foo 13))
 
-      foo)");
+      foo)",
+    );
 
-  assert_eq!(result, Value::Int(13));
+    assert_eq!(result, Value::Int(13));
 }
 
 #[test]
 fn eval_set_local() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (define foo 12)
 
       (let ((bar 25))
         (set bar 13))
 
-      foo)");
+      foo)",
+    );
 
-  assert_eq!(result, Value::Int(12));
+    assert_eq!(result, Value::Int(12));
 }
-
 
 #[test]
 #[should_panic]
 fn eval_set_undefined() {
-  eval_str("
+    eval_str(
+        "
     (begin
       (let ((bar 25))
-        (set foo 13)))");
+        (set foo 13)))",
+    );
 }
 
 #[test]
 fn eval_fib() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (define fib 
         (lambda (n)
@@ -127,14 +139,16 @@ fn eval_fib() {
             ((== n 1) 1)
             (T (+ (fib (- n 1)) (fib (- n 2)) ))))) ;;another comment
 
-      (list (fib 0) (fib 1) (fib 2) (fib 3) (fib 4) (fib 5) (fib 6) (fib 7) (fib 8)))");
+      (list (fib 0) (fib 1) (fib 2) (fib 3) (fib 4) (fib 5) (fib 6) (fib 7) (fib 8)))",
+    );
 
-  assert_eq!(result, lisp! { (0 1 1 2 3 5 8 13 21) });
+    assert_eq!(result, lisp! { (0 1 1 2 3 5 8 13 21) });
 }
 
 #[test]
 fn eval_merge_sort() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
 
       (defun list-head (lst n) 
@@ -159,14 +173,16 @@ fn eval_merge_sort() {
           (merge (mergesort (list-head lst (truncate (length lst) 2)))
                 (mergesort (list-tail lst (truncate (length lst) 2))))))
 
-      (mergesort (list 7 2 5 0 1 5)))");
+      (mergesort (list 7 2 5 0 1 5)))",
+    );
 
-  assert_eq!(result, lisp! { (0 1 2 5 5 7) });
+    assert_eq!(result, lisp! { (0 1 2 5 5 7) });
 }
 
 #[test]
 fn tail_call_test() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (defun recurse-test (n)
           (if (> n 0) 
@@ -176,39 +192,43 @@ fn tail_call_test() {
             n))
       
       (recurse-test 1000))
-  ");
+  ",
+    );
 
-  assert_eq!(result, Value::Int(0));
+    assert_eq!(result, Value::Int(0));
 }
 
 #[test]
 fn rest_parameters_test() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (defun foo (a b ...)
         ...)
       
-      (foo 1 2 3 4 5))");
+      (foo 1 2 3 4 5))",
+    );
 
-  assert_eq!(result, lisp! { (3 4 5) });
+    assert_eq!(result, lisp! { (3 4 5) });
 }
 
 #[test]
 fn calling_empty_fun() {
-  let result = eval_str("
+    let result = eval_str(
+        "
     (begin
       (defun foo () ())
       
-      (foo))");
+      (foo))",
+    );
 
-  assert_eq!(result, lisp! { () });
+    assert_eq!(result, lisp! { () });
 }
 
-
 fn eval_str(source: &str) -> Value {
-  let ast = parse(source).next().unwrap().unwrap();
-  let env = Rc::new(RefCell::new(default_env()));
-  return eval(env, &ast).unwrap();
+    let ast = parse(source).next().unwrap().unwrap();
+    let env = Rc::new(RefCell::new(default_env()));
+    return eval(env, &ast).unwrap();
 }
 
 // #[bench]
@@ -222,30 +242,30 @@ fn eval_str(source: &str) -> Value {
 
 //   let source = "
 //     (begin
-//       (define 
-//         list-head 
-//         (lambda (lst n) 
-//           (if (== n 0) 
-//             (list) 
+//       (define
+//         list-head
+//         (lambda (lst n)
+//           (if (== n 0)
+//             (list)
 //             (cons (car lst) (list-head (cdr lst) (- n 1))))))
 
 //       (define
-//         list-tail 
-//         (lambda (lst n) 
-//           (if (== n 0) 
-//             lst 
+//         list-tail
+//         (lambda (lst n)
+//           (if (== n 0)
+//             lst
 //             (list-tail (cdr lst) (- n 1)))))
 
-//       (define 
-//         merge 
+//       (define
+//         merge
 //         (lambda (lst-a lst-b)
 //           (cond ((not lst-a) lst-b)
 //                 ((not lst-b) lst-a)
 //                 ((< (car lst-a) (car lst-b)) (cons (car lst-a) (merge (cdr lst-a) lst-b)))
 //                 (T (cons (car lst-b) (merge lst-a (cdr lst-b)))))))
 
-//       (define 
-//         mergesort 
+//       (define
+//         mergesort
 //         (lambda (lst)
 //           (if (== (length lst) 1)
 //             lst

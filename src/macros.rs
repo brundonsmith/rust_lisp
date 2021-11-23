@@ -1,4 +1,3 @@
-
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! lisp {
@@ -35,9 +34,9 @@ macro_rules! lisp {
 
     // Literals
     ($e:literal) => {
-        // HACK: Macros don't have a good way to 
+        // HACK: Macros don't have a good way to
         // distinguish different kinds of literals,
-        // so we just kick those out to be parsed 
+        // so we just kick those out to be parsed
         // at runtime.
         parse(stringify!($e)).next().unwrap().unwrap()
     };

@@ -1,11 +1,10 @@
-
+mod default_environment;
 mod interpreter;
 mod parser;
-mod default_environment;
 
-pub use parser::parse;
-pub use interpreter::{eval,eval_block};
 pub use default_environment::default_env;
+pub use interpreter::{eval, eval_block};
+pub use parser::parse;
 
 pub mod model;
 pub mod utils;
@@ -13,28 +12,25 @@ pub mod utils;
 pub mod macros;
 
 use model::Env;
-use std::{rc::Rc, cell::RefCell, io};
 use std::io::Write;
+use std::{cell::RefCell, io, rc::Rc};
 
 /// Starts a REPL prompt at stdin/stdout. **This will block the current thread.**
 pub fn start_repl(env: Option<Env>) {
-  let env_rc = Rc::new(RefCell::new(env.unwrap_or(default_env())));
+    let env_rc = Rc::new(RefCell::new(env.unwrap_or(default_env())));
 
-  loop {
-    print!("> ");
-    io::stdout().flush().unwrap();
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
 
-    let mut buf = String::new();
-    io::stdin().read_line(&mut buf).unwrap();
+        let mut buf = String::new();
+        io::stdin().read_line(&mut buf).unwrap();
 
-    let res = eval_block(
-      env_rc.clone(),
-      parse(&buf)
-        .filter_map(|a| a.ok().clone()));
+        let res = eval_block(env_rc.clone(), parse(&buf).filter_map(|a| a.ok().clone()));
 
-    match res {
-      Ok(val) => println!("{}", val),
-      Err(e) => println!("{}", e),
-    };
-  }
+        match res {
+            Ok(val) => println!("{}", val),
+            Err(e) => println!("{}", e),
+        };
+    }
 }
