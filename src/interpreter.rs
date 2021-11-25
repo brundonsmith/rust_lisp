@@ -301,6 +301,7 @@ fn eval_inner(
 
     result
 }
+// 🦀 Boo! Did I scare ya? Haha!
 
 /// Calling a function is separated from the main `eval_inner()` function
 /// so that tail calls can be evaluated without just returning themselves

@@ -1,5 +1,6 @@
 use crate::model::{Value, RuntimeError, List, IntType, FloatType};
 
+// 🦀 Poor thing, you went unused too?
 // pub struct ArgumentError {
 //   msg: String,
 //   index: usize,

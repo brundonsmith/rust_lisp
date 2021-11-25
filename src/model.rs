@@ -146,6 +146,7 @@ impl Display for Value {
     }
 }
 
+// 🦀 Ferris blesses the Debug trait
 impl Debug for Value {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -473,6 +474,8 @@ impl PartialEq for Lambda {
 /// The trait bound for any Rust function that is to be called from lisp code
 type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 
+// 🦀 Ferris thinks... Maybe we should turn this struct into enum? Some things we can put in stack
+// rather than allocating memory for yet another `String`
 #[derive(Debug, Clone)]
 pub struct RuntimeError {
     pub msg: String,

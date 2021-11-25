@@ -12,6 +12,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use rust_lisp::{default_env, eval_block, parse, start_repl};
 
+// 🦀 Try finding me! I'm hidden all around the code!
+
 fn main() {
     match std::env::args().nth(1) {
         Some(code) => {

@@ -200,6 +200,7 @@ pub fn default_env() -> Env {
         }),
     );
 
+    // 🦀 Oh the poor `filter`, you must feel really sad being unused.
     // entries.insert(
     //   String::from("filter"),
     //   Value::NativeFunc(

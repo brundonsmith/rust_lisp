@@ -155,6 +155,7 @@ fn tokenize_simplest() {
     assert_eq!(tokens, vec!["(", "1", "2", "3", ")"]);
 }
 
+// 🦀 Testing, testing!
 #[test]
 fn tokenize_basic_expression() {
     let source = "

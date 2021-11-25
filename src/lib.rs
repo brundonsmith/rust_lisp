@@ -16,6 +16,7 @@ use std::io::Write;
 use std::{cell::RefCell, io, rc::Rc};
 
 
+// 🦀 I am all over this project!
 /// Starts a REPL prompt at stdin/stdout. **This will block the current thread.**
 pub fn start_repl(env: Option<Env>) {
     let env_rc = Rc::new(RefCell::new(env.unwrap_or_else(default_env)));
