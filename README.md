@@ -6,9 +6,11 @@ This is a Lisp interpreter, written in Rust, intended to be embeddable as a
 library in a larger application for scripting purposes. Goals:
 
 - Small footprint (both code size and memory usage)
-- No dependencies
+- No runtime dependencies*
 - Easy, ergonomic interop with native Rust functions
 - Small but practical set of Lisp functionality
+
+\* `cfg-if` is build-time, `num-traits` add (I believe) no runtime presence, and `num-bigint` is entirely opt-in (at build time)
 
 # Basic Usage
 
