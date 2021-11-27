@@ -10,13 +10,14 @@ library in a larger application for scripting purposes. Goals:
 - Easy, ergonomic interop with native Rust functions
 - Small but practical set of Lisp functionality
 
-\* `cfg-if` is build-time, `num-traits` add (I believe) no runtime presence, and `num-bigint` is entirely opt-in (at build time)
+* `cfg-if` is build-time, `num-traits` add (I believe) no runtime presence, and
+`num-bigint` is entirely opt-in (at build time)
 
 # Basic Usage
 
 ```rust
 [dependencies]
-rust_lisp = "0.5.0"
+rust_lisp = "0.6.0"
 ```
 
 ```rust
