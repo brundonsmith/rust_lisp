@@ -41,7 +41,7 @@ fn parse_atom() {
     let source = "12";
     let ast = parse(source).next().unwrap().unwrap();
 
-    assert_eq!(ast, Value::Int(12));
+    assert_eq!(ast, Value::from_int(12));
 }
 
 #[test]

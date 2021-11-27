@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc};
 fn eval_basic_expression() {
     let result = eval_str("(+ (* 1 2) (/ 6 3))");
 
-    assert_eq!(result, Value::Int(4));
+    assert_eq!(result, Value::from_int(4));
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn eval_quote_tick_list() {
 fn eval_quote_tick_atom() {
     let result = eval_str("(nth 0 (list '12))");
 
-    assert_eq!(result, Value::Int(12));
+    assert_eq!(result, Value::from_int(12));
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn eval_set_global() {
       foo)",
     );
 
-    assert_eq!(result, Value::Int(13));
+    assert_eq!(result, Value::from_int(13));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn eval_set_local() {
       foo)",
     );
 
-    assert_eq!(result, Value::Int(12));
+    assert_eq!(result, Value::from_int(12));
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn tail_call_test() {
   ",
     );
 
-    assert_eq!(result, Value::Int(0));
+    assert_eq!(result, Value::from_int(0));
 }
 
 #[test]

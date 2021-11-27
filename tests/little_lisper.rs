@@ -9,7 +9,7 @@ use std::{cell::RefCell, rc::Rc};
 
 #[test]
 fn one() {
-    assert_eq!(eval_str("(car (list 1 2 3))"), Value::Int(1));
+    assert_eq!(eval_str("(car (list 1 2 3))"), Value::from_int(1));
 }
 
 #[test]

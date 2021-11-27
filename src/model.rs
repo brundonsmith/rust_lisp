@@ -75,6 +75,14 @@ impl Value {
         self != &Value::List(List::NIL) && self != &Value::False
     }
 
+    pub fn from_int<I: std::convert::Into<IntType>>(i: I) -> Value {
+        Value::Int(i.into())
+    }
+
+    pub fn from_float<F: std::convert::Into<FloatType>>(f: F) -> Value {
+        Value::Float(f.into())
+    }
+
     #[allow(clippy::clone_on_copy)]
     pub fn as_int(&self) -> Option<IntType> {
         match self {
