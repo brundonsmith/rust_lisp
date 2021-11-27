@@ -1,6 +1,6 @@
 use crate::{
     lisp,
-    model::{List, Value, IntType, FloatType},
+    model::{FloatType, IntType, List, Value},
 };
 
 use std::fmt::Display;
@@ -395,11 +395,9 @@ pub struct ParseError {
 }
 
 impl ParseError {
-  fn new(s: impl Into<String>) -> ParseError {
-    ParseError {
-      msg: s.into()
+    fn new(s: impl Into<String>) -> ParseError {
+        ParseError { msg: s.into() }
     }
-  }
 }
 
 impl Display for ParseError {

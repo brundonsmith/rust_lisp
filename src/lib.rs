@@ -15,7 +15,6 @@ use model::Env;
 use std::io::Write;
 use std::{cell::RefCell, io, rc::Rc};
 
-
 // 🦀 I am all over this project!
 /// Starts a REPL prompt at stdin/stdout. **This will block the current thread.**
 pub fn start_repl(env: Option<Env>) {

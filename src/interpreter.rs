@@ -130,16 +130,12 @@ fn eval_inner(
                             symbol.type_name()
                         ),
                     })?;
-                    let argnames = Rc::new(
-                        list_iter
-                            .next()
-                            .ok_or(RuntimeError {
-                                msg: format!(
-                                    "Expected argument list in function definition for \"{}\"",
-                                    symbol
-                                ),
-                            })?,
-                    );
+                    let argnames = Rc::new(list_iter.next().ok_or(RuntimeError {
+                        msg: format!(
+                            "Expected argument list in function definition for \"{}\"",
+                            symbol
+                        ),
+                    })?);
                     let body = Rc::new(Value::List(list_iter.collect::<List>()));
 
                     let lambda = Value::Lambda(Lambda {
@@ -266,9 +262,10 @@ fn eval_inner(
                 // function call
                 _ => {
                     let func = eval_inner(env.clone(), &list.car()?, true, in_func)?;
-                    let args = list.into_iter().skip(1).map(|car| {
-                        eval_inner(env.clone(), &car, true, in_func)
-                    });
+                    let args = list
+                        .into_iter()
+                        .skip(1)
+                        .map(|car| eval_inner(env.clone(), &car, true, in_func));
 
                     if !found_tail && in_func {
                         let args_vec = args.filter_map(|a| a.ok()).collect();

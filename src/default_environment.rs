@@ -4,8 +4,8 @@ use crate::{
     model::{Env, List, RuntimeError, Value},
     utils::{require_int_parameter, require_list_parameter, require_parameter},
 };
-use std::collections::HashMap;
 use cfg_if::cfg_if;
+use std::collections::HashMap;
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
@@ -149,10 +149,7 @@ pub fn default_env() -> Env {
             }
             let list = require_list_parameter("nth", args, 1)?;
 
-            Ok(list
-                .into_iter()
-                .nth(index)
-                .unwrap_or(Value::NIL))
+            Ok(list.into_iter().nth(index).unwrap_or(Value::NIL))
         }),
     );
 
@@ -188,8 +185,7 @@ pub fn default_env() -> Env {
             let func = require_parameter("map", args, 0)?;
             let list = require_list_parameter("map", args, 1)?;
 
-            list
-                .into_iter()
+            list.into_iter()
                 .map(|val| {
                     let expr = lisp! { ({func.clone()} {val}) };
 
@@ -268,15 +264,15 @@ pub fn default_env() -> Env {
             let b = require_parameter("+", args, 1)?;
 
             if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
-                return Ok(Value::Int(a + b))
+                return Ok(Value::Int(a + b));
             }
 
             if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
-                return Ok(Value::Float(a + b))
+                return Ok(Value::Float(a + b));
             }
 
             if let (Some(a), Some(b)) = (a.as_string(), b.as_string()) {
-                return Ok(Value::String(String::from(a) + b))
+                return Ok(Value::String(String::from(a) + b));
             }
 
             Err(RuntimeError {
@@ -292,11 +288,11 @@ pub fn default_env() -> Env {
             let b = require_parameter("-", args, 1)?;
 
             if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
-                return Ok(Value::Int(a - b))
+                return Ok(Value::Int(a - b));
             }
 
             if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
-                return Ok(Value::Float(a - b))
+                return Ok(Value::Float(a - b));
             }
 
             Err(RuntimeError {
@@ -312,11 +308,11 @@ pub fn default_env() -> Env {
             let b = require_parameter("*", args, 1)?;
 
             if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
-                return Ok(Value::Int(a * b))
+                return Ok(Value::Int(a * b));
             }
 
-            if let (Some(a), Some(b)) =  (a.as_float(), b.as_float()) {
-                return Ok(Value::Float(a * b))
+            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+                return Ok(Value::Float(a * b));
             }
 
             Err(RuntimeError {
@@ -332,11 +328,11 @@ pub fn default_env() -> Env {
             let b = require_parameter("/", args, 1)?;
 
             if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
-                return Ok(Value::Int(a / b))
+                return Ok(Value::Int(a / b));
             }
 
             if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
-                return Ok(Value::Float(a / b))
+                return Ok(Value::Float(a / b));
             }
 
             Err(RuntimeError {
@@ -352,7 +348,7 @@ pub fn default_env() -> Env {
             let b = require_parameter("truncate", args, 1)?;
 
             if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
-                return Ok(Value::Int(a / b))
+                return Ok(Value::Int(a / b));
             }
 
             Err(RuntimeError {

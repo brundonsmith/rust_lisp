@@ -1,3 +1,4 @@
+use cfg_if::cfg_if;
 use std::rc::Rc;
 use std::{cell::RefCell, cmp::Ordering};
 use std::{
@@ -5,7 +6,6 @@ use std::{
     error::Error,
     fmt::{Debug, Display},
 };
-use cfg_if::cfg_if;
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_bigint::BigInt;
@@ -260,7 +260,7 @@ impl PartialOrd for Value {
                             n.partial_cmp(&(o.round() as IntType))
                         }
                     }
-                },
+                }
                 _ => None,
             },
             Value::Float(n) => match other {
@@ -292,7 +292,7 @@ impl PartialOrd for Value {
                     }
 
                     n.partial_cmp(&(o_float))
-                },
+                }
                 Value::Float(o) => n.partial_cmp(o),
                 _ => None,
             },
@@ -490,11 +490,9 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
-  pub fn new(s: impl Into<String>) -> RuntimeError {
-    RuntimeError {
-      msg: s.into()
+    pub fn new(s: impl Into<String>) -> RuntimeError {
+        RuntimeError { msg: s.into() }
     }
-  }
 }
 
 impl Display for RuntimeError {

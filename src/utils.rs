@@ -1,4 +1,4 @@
-use crate::model::{Value, RuntimeError, List, IntType, FloatType};
+use crate::model::{FloatType, IntType, List, RuntimeError, Value};
 
 // 🦀 Poor thing, you went unused too?
 // pub struct ArgumentError {
