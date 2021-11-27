@@ -5,7 +5,7 @@ use crate::{
     utils::{require_int_parameter, require_list_parameter, require_parameter},
 };
 use cfg_if::cfg_if;
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryInto};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
@@ -138,16 +138,11 @@ pub fn default_env() -> Env {
     entries.insert(
         String::from("nth"),
         Value::NativeFunc(|_env, args| {
-            cfg_if! {
-                if #[cfg(feature = "bigint")] {
-                    let index = require_int_parameter("nth", args, 0)?
-                        .to_usize()
-                        .ok_or(RuntimeError::new("Failed converting `BigInt` to `usize`"))?;
-                } else {
-                    let index = require_int_parameter("nth", args, 0)? as usize;
-                }
-            }
+            let index = require_int_parameter("nth", args, 0)?;
             let list = require_list_parameter("nth", args, 1)?;
+
+            let index = TryInto::<usize>::try_into(index)
+                .map_err(move |_| RuntimeError::new("Failed converting to `usize`"))?;
 
             Ok(list.into_iter().nth(index).unwrap_or(Value::NIL))
         }),
