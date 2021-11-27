@@ -225,6 +225,7 @@ fn calling_empty_fun() {
     assert_eq!(result, lisp! { () });
 }
 
+#[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();
     let env = Rc::new(RefCell::new(default_env()));
