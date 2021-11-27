@@ -142,7 +142,7 @@ pub fn default_env() -> Env {
             let list = require_list_parameter("nth", args, 1)?;
 
             let index = TryInto::<usize>::try_into(index)
-                .map_err(move |_| RuntimeError::new("Failed converting to `usize`"))?;
+                .map_err(|_| RuntimeError::new("Failed converting to `usize`"))?;
 
             Ok(list.into_iter().nth(index).unwrap_or(Value::NIL))
         }),
@@ -239,22 +239,14 @@ pub fn default_env() -> Env {
 
             cfg_if! {
                 if #[cfg(feature = "bigint")] {
-                    let mut i = start.clone();
-                    let mut res = Vec::with_capacity((end.clone() - start)
-                        .to_usize()
-                        .ok_or(RuntimeError::new("Failed converting `BigInt` to `usize`"))?
-                    );
-
-                    while i < end {
-                        res.push(i.clone());
-                        i += 1;
-                    }
-
-                    Ok(Value::List(res.into_iter().map(Value::Int).collect::<List>()))
-                } else {
-                    Ok(Value::List((start..end).map(Value::Int).collect::<List>()))
+                    let start = start.to_usize().ok_or(RuntimeError::new("Failed converting to `usize`"))?;
+                    let end = end.to_usize().ok_or(RuntimeError::new("Failed converting to `usize`"))?;
                 }
             }
+            
+            Ok(Value::List(
+                (start..end).map(Value::from_int).collect::<List>(),
+            ))
         }),
     );
 
