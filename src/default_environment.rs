@@ -248,14 +248,14 @@ pub fn default_env() -> Env {
                         .ok_or(RuntimeError::new("Failed converting `BigInt` to `usize`"))?
                     );
 
-                    while i <= end {
+                    while i < end {
                         res.push(i.clone());
                         i += 1;
                     }
 
                     Ok(Value::List(res.into_iter().map(Value::Int).collect::<List>()))
                 } else {
-                    Ok(Value::List((start..=end).map(Value::Int).collect::<List>()))
+                    Ok(Value::List((start..end).map(Value::Int).collect::<List>()))
                 }
             }
         }),

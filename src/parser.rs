@@ -336,8 +336,8 @@ fn read<'a>(
                 };
                 quote_next = false;
 
-                if !stack.is_empty() {
-                    if let ParseTree::List { vec, quoted: _ } = stack.last_mut().unwrap() {
+                if let Some(last) = stack.last_mut() {
+                    if let ParseTree::List { vec, quoted: _ } = last {
                         vec.push(expr);
                     }
                     None
