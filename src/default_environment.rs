@@ -197,23 +197,29 @@ pub fn default_env() -> Env {
     );
 
     // 🦀 Oh the poor `filter`, you must feel really sad being unused.
-    // entries.insert(
-    //   String::from("filter"),
-    //   Value::NativeFunc(
-    //     |env, args| {
-    //       let func = require_parameter("filter", args, 0)?;
-    //       let list = require_list_parameter("filter", args, 1)?;
+    entries.insert(
+        String::from("filter"),
+        Value::NativeFunc(|env, args| {
+            let func = require_parameter("filter", args, 0)?;
+            let list = require_list_parameter("filter", args, 1)?;
 
-    //       return list.into_iter()
-    //         .filter(|val: &&Value| -> Result<bool,RuntimeError> {
-    //           let expr = Value::List([ func.clone(), *val.clone() ].into_iter().collect());
-    //           let res = eval(env.clone(), &expr)?;
+            list.into_iter()
+                .filter_map(|val: Value| -> Option<Result<Value, RuntimeError>> {
+                    let expr = Value::List([func.clone(), val.clone()].iter().collect());
+                    let res = eval(env.clone(), &expr);
 
-    //           Ok(res.is_truthy())
-    //         })
-    //         .collect::<Result<List,RuntimeError>>()
-    //         .map(|l| Value::List(l));
-    //     }));
+                    match res {
+                        Ok(matches) => match matches.is_truthy() {
+                            true => Some(Ok(val)),
+                            false => None,
+                        },
+                        Err(e) => Some(Err(e)),
+                    }
+                })
+                .collect::<Result<List, RuntimeError>>()
+                .map(|l| Value::List(l))
+        }),
+    );
 
     entries.insert(
         String::from("length"),
