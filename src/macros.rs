@@ -42,6 +42,7 @@ macro_rules! lisp {
     };
 
 
+    // 🦀 Very special!
     // Special atoms
     (Nil) => { Value::NIL };
     (T) =>   { Value::T   };

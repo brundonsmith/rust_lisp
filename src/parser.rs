@@ -1,7 +1,8 @@
 use crate::{
     lisp,
-    model::{List, Value},
+    model::{List, Value, IntType, FloatType},
 };
+
 use std::fmt::Display;
 
 /// A slightly more convenient data structure for building the parse tree, before
@@ -40,7 +41,7 @@ impl ParseTree {
 }
 
 /// Tokenize Lisp code
-fn tokenize<'a>(code: &'a str) -> impl Iterator<Item = &'a str> {
+fn tokenize(code: &str) -> impl Iterator<Item = &str> {
     let mut skip_to: Option<usize> = None;
 
     code.char_indices().filter_map(move |(index, ch)| {
@@ -117,7 +118,7 @@ fn tokenize<'a>(code: &'a str) -> impl Iterator<Item = &'a str> {
             }
         }
 
-        return None;
+        None
     })
 }
 
@@ -154,6 +155,7 @@ fn tokenize_simplest() {
     assert_eq!(tokens, vec!["(", "1", "2", "3", ")"]);
 }
 
+// 🦀 Testing, testing!
 #[test]
 fn tokenize_basic_expression() {
     let source = "
@@ -292,10 +294,8 @@ fn read<'a>(
             ")" => {
                 parenths -= 1;
 
-                if stack.len() == 0 {
-                    Some(Err(ParseError {
-                        msg: format!("Unexpected ')'"),
-                    }))
+                if stack.is_empty() {
+                    Some(Err(ParseError::new("Unexpected ')'")))
                 } else {
                     let mut finished = stack.pop().unwrap();
 
@@ -307,7 +307,7 @@ fn read<'a>(
 
                         // () is Nil
                         if let ParseTree::List { vec, quoted } = &finished {
-                            if vec.len() == 0 {
+                            if vec.is_empty() {
                                 finished = ParseTree::Atom {
                                     atom: Value::NIL,
                                     quoted: *quoted,
@@ -331,13 +331,13 @@ fn read<'a>(
             _ => {
                 // atom
                 let expr = ParseTree::Atom {
-                    atom: read_atom(&token),
+                    atom: read_atom(token),
                     quoted: quote_next,
                 };
                 quote_next = false;
 
-                if stack.len() > 0 {
-                    if let ParseTree::List { vec, quoted: _ } = stack.last_mut().unwrap() {
+                if let Some(last) = stack.last_mut() {
+                    if let ParseTree::List { vec, quoted: _ } = last {
                         vec.push(expr);
                     }
                     None
@@ -364,14 +364,12 @@ fn read_atom(token: &str) -> Value {
         return Value::NIL;
     }
 
-    let as_int = token.parse::<i32>();
-    if as_int.is_ok() {
-        return Value::Int(as_int.unwrap());
+    if let Ok(as_int) = token.parse::<IntType>() {
+        return Value::Int(as_int);
     }
 
-    let as_float = token.parse::<f32>();
-    if as_float.is_ok() {
-        return Value::Float(as_float.unwrap());
+    if let Ok(as_float) = token.parse::<FloatType>() {
+        return Value::Float(as_float);
     }
 
     if token.chars().next().map_or(false, |c| c == '"')
@@ -380,7 +378,7 @@ fn read_atom(token: &str) -> Value {
         return Value::String(String::from(&token[1..token.chars().count() - 1]));
     }
 
-    return Value::Symbol(String::from(token));
+    Value::Symbol(String::from(token))
 }
 
 /// Parse a string of Lisp code into a series of s-expressions. There
@@ -394,6 +392,14 @@ pub fn parse(code: &str) -> impl Iterator<Item = Result<Value, ParseError>> + '_
 pub struct ParseError {
     pub msg: String,
     // pub line: i32,
+}
+
+impl ParseError {
+  fn new(s: impl Into<String>) -> ParseError {
+    ParseError {
+      msg: s.into()
+    }
+  }
 }
 
 impl Display for ParseError {
