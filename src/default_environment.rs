@@ -239,8 +239,8 @@ pub fn default_env() -> Env {
 
             cfg_if! {
                 if #[cfg(feature = "bigint")] {
-                    let start = start.to_usize().ok_or(RuntimeError::new("Failed converting to `usize`"))?;
-                    let end = end.to_usize().ok_or(RuntimeError::new("Failed converting to `usize`"))?;
+                    let start = start.to_i128().ok_or(RuntimeError::new("Failed converting to `i128`"))?;
+                    let end = end.to_i128().ok_or(RuntimeError::new("Failed converting to `i128`"))?;
                 }
             }
             
