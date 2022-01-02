@@ -36,7 +36,11 @@ fn eval_block_inner(
         current_expr = Some(clause);
     }
 
-    eval_inner(env, &current_expr.unwrap(), found_tail, in_func)
+    if let Some(expr) = &current_expr {
+        eval_inner(env, expr, found_tail, in_func)
+    } else {
+        Err(RuntimeError::new("Unrecognized expression"))
+    }
 }
 
 /// `found_tail` and `in_func` are used when locating the tail position for
