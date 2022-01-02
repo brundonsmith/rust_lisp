@@ -212,7 +212,7 @@ pub fn default_env() -> Env {
                     }
                 })
                 .collect::<Result<List, RuntimeError>>()
-                .map(|l| Value::List(l))
+                .map(Value::List)
         }),
     );
 
