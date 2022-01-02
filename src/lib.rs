@@ -22,11 +22,10 @@ use std::{cell::RefCell, rc::Rc};
 /// Starts a REPL prompt at stdin/stdout. **This will block the current thread.**
 pub fn start_repl(env: Option<Env>) {
     let env = Rc::new(RefCell::new(env.unwrap_or_else(default_env)));
-    let stdin = io::stdin();
 
     print!("> ");
     io::stdout().flush().unwrap();
-    for line in stdin.lock().lines() {
+    for line in io::stdin().lock().lines() {
         match eval_block(Rc::clone(&env), parse(&line.unwrap()).filter_map(|a| a.ok())) {
             Ok(val) => println!("{}", val),
             Err(e) => println!("{}", e),
