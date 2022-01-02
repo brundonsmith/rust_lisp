@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod default_environment;
 mod interpreter;
 mod parser;
