@@ -5,7 +5,7 @@ use crate::{
     utils::{require_int_parameter, require_list_parameter, require_parameter},
 };
 use cfg_if::cfg_if;
-use std::{collections::HashMap, convert::TryInto};
+use std::{collections::HashMap, convert::TryInto, rc::Rc};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
@@ -184,7 +184,7 @@ pub fn default_env() -> Env {
                 .map(|val| {
                     let expr = lisp! { ({func.clone()} {val}) };
 
-                    eval(env.clone(), &expr)
+                    eval(Rc::clone(&env), &expr)
                 })
                 .collect::<Result<List, RuntimeError>>()
                 .map(Value::List)
@@ -201,7 +201,7 @@ pub fn default_env() -> Env {
             list.into_iter()
                 .filter_map(|val: Value| -> Option<Result<Value, RuntimeError>> {
                     let expr = Value::List([func.clone(), val.clone()].iter().collect());
-                    let res = eval(env.clone(), &expr);
+                    let res = eval(Rc::clone(&env), &expr);
 
                     match res {
                         Ok(matches) => match matches.is_truthy() {

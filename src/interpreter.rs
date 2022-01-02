@@ -25,7 +25,7 @@ fn eval_block_inner(
 
     for clause in clauses {
         if let Some(expr) = current_expr {
-            match eval_inner(env.clone(), &expr, true, in_func) {
+            match eval_inner(Rc::clone(&env), &expr, true, in_func) {
                 Ok(_) => (),
                 Err(e) => {
                     return Err(e);
@@ -82,7 +82,7 @@ fn eval_inner(
                         ),
                     })?;
                     let value_expr = &cdr.cdr().car()?;
-                    let value = eval_inner(env.clone(), value_expr, true, in_func)?;
+                    let value = eval_inner(Rc::clone(&env), value_expr, true, in_func)?;
 
                     env.borrow_mut().entries.insert(symbol, value.clone());
 
@@ -93,7 +93,7 @@ fn eval_inner(
                     let cdr = list.cdr();
                     let symbol = cdr.car()?.as_symbol().unwrap();
                     let value_expr = &cdr.cdr().car()?;
-                    let value = eval_inner(env.clone(), value_expr, true, in_func)?;
+                    let value = eval_inner(Rc::clone(&env), value_expr, true, in_func)?;
 
                     if env.borrow().entries.contains_key(&symbol) {
                         env.borrow_mut().entries.insert(symbol, value.clone());
@@ -143,7 +143,7 @@ fn eval_inner(
                     let body = Rc::new(Value::List(list_iter.collect::<List>()));
 
                     let lambda = Value::Lambda(Lambda {
-                        closure: env.clone(),
+                        closure: Rc::clone(&env),
                         argnames,
                         body,
                     });
@@ -183,7 +183,7 @@ fn eval_inner(
                         let symbol = decl_cons.car()?.as_symbol().unwrap();
                         let expr = &decl_cons.cdr().car()?;
 
-                        let result = eval_inner(let_env.clone(), expr, true, in_func)?;
+                        let result = eval_inner(Rc::clone(&let_env), expr, true, in_func)?;
                         let_env.borrow_mut().entries.insert(symbol, result);
                     }
 
@@ -216,7 +216,7 @@ fn eval_inner(
                         let condition = &clause.car()?;
                         let then = &clause.cdr().car()?;
 
-                        if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
+                        if eval_inner(Rc::clone(&env), condition, true, in_func)?.is_truthy() {
                             result = eval_inner(env, then, found_tail, in_func)?;
                             break;
                         }
@@ -231,7 +231,7 @@ fn eval_inner(
                     let then_result = &cdr.cdr().car()?;
                     let else_result = cdr.cdr().cdr().car().ok();
 
-                    if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
+                    if eval_inner(Rc::clone(&env), condition, true, in_func)?.is_truthy() {
                         Ok(eval_inner(env, then_result, found_tail, in_func)?)
                     } else {
                         Ok(match else_result {
@@ -247,7 +247,7 @@ fn eval_inner(
                     let b = &cdr.cdr().car()?;
 
                     Ok(Value::from_truth(
-                        eval_inner(env.clone(), a, true, in_func)?.is_truthy()
+                        eval_inner(Rc::clone(&env), a, true, in_func)?.is_truthy()
                             && eval_inner(env, b, true, in_func)?.is_truthy(),
                     ))
                 }
@@ -258,18 +258,18 @@ fn eval_inner(
                     let b = &cdr.cdr().car()?;
 
                     Ok(Value::from_truth(
-                        eval_inner(env.clone(), a, true, in_func)?.is_truthy()
+                        eval_inner(Rc::clone(&env), a, true, in_func)?.is_truthy()
                             || eval_inner(env, b, true, in_func)?.is_truthy(),
                     ))
                 }
 
                 // function call
                 _ => {
-                    let func = eval_inner(env.clone(), &list.car()?, true, in_func)?;
+                    let func = eval_inner(Rc::clone(&env), &list.car()?, true, in_func)?;
                     let args = list
                         .into_iter()
                         .skip(1)
-                        .map(|car| eval_inner(env.clone(), &car, true, in_func));
+                        .map(|car| eval_inner(Rc::clone(&env), &car, true, in_func));
 
                     if !found_tail && in_func {
                         let args_vec = args.filter_map(|a| a.ok()).collect();
@@ -281,10 +281,10 @@ fn eval_inner(
 
                         return Ok(expr);
                     } else {
-                        let mut res = call_function(env.clone(), &func, args.collect());
+                        let mut res = call_function(Rc::clone(&env), &func, args.collect());
                         while let Ok(Value::TailCall { func, args }) = res {
                             res = call_function(
-                                env.clone(),
+                                Rc::clone(&env),
                                 &func,
                                 args.iter().map(|arg| Ok(arg.clone())).collect(),
                             );

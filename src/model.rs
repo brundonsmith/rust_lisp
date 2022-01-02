@@ -444,10 +444,10 @@ mod list {
 
                 // if this is the first cell, put it in the List
                 if new_list.head.is_none() {
-                    new_list.head = Some(new_cons.clone());
+                    new_list.head = Some(Rc::clone(&new_cons));
                 // otherwise, put it in the current tail cell
                 } else if let Some(tail_cons) = tail {
-                    tail_cons.as_ref().borrow_mut().cdr = Some(new_cons.clone());
+                    tail_cons.as_ref().borrow_mut().cdr = Some(Rc::clone(&new_cons));
                 }
 
                 // the current cell is the new tail
