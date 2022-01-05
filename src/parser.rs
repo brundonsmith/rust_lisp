@@ -81,11 +81,12 @@ fn tokenize(code: &str) -> impl Iterator<Item = &str> {
         }
 
         // comments
-        if ch == ';' && code[index + 1..].chars().next().map_or(false, |c| c == ';') {
-            let comment_end =
-                index + 2 + match_pred(&code[index + 2..], |c| c != '\n').unwrap_or(0);
-
-            skip_to = Some(comment_end + 1);
+        if ch == ';' {
+            if let Some(newline_index) = code[index..].find(|c| c == '\n') {
+                skip_to = Some(index + newline_index + 1);
+            } else {
+                skip_to = Some(code.len());
+            }
             return None;
         }
 
