@@ -11,7 +11,7 @@ library in a larger application for scripting purposes. Goals:
 - Small but practical set of Lisp functionality
 
 * `cfg-if` is build-time, `num-traits` add (I believe) no runtime presence, and
-`num-bigint` is entirely opt-in (at build time)
+  `num-bigint` is entirely opt-in (at build time)
 
 # Basic Usage
 
@@ -145,12 +145,6 @@ fn parse_basic_expression() {
   });
 }
 ```
-
-**NOTE: There is currently a problem with the macro where predicates ending in
-`?` cannot be used. This is because `?` cannot be a valid part of an identifier
-in Rust, and so `null?` for example cannot be processed by Rust as a single
-token. The solution will likely involve renaming those predicates to not include
-`?`. This is why the project is still in version `0.X.X` :)**
 
 # Included functionality
 

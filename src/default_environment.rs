@@ -31,18 +31,18 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("null?"),
+        String::from("is-null"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("null?", args, 0)?;
+            let val = require_parameter("is-null", args, 0)?;
 
             Ok(Value::from_truth(*val == Value::NIL))
         }),
     );
 
     entries.insert(
-        String::from("number?"),
+        String::from("is-number"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("number?", args, 0)?;
+            let val = require_parameter("is-number", args, 0)?;
 
             Ok(match val {
                 Value::Int(_) => Value::True,
@@ -53,9 +53,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("symbol?"),
+        String::from("is-symbol"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("symbol?", args, 0)?;
+            let val = require_parameter("is-symbol", args, 0)?;
 
             Ok(match val {
                 Value::Symbol(_) => Value::True,
@@ -65,9 +65,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("boolean?"),
+        String::from("is-boolean"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("boolean?", args, 0)?;
+            let val = require_parameter("is-boolean", args, 0)?;
 
             Ok(match val {
                 Value::True => Value::True,
@@ -78,9 +78,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("procedure?"),
+        String::from("is-procedure"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("procedure?", args, 0)?;
+            let val = require_parameter("is-procedure", args, 0)?;
 
             Ok(match val {
                 Value::Lambda(_) => Value::True,
@@ -91,9 +91,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("pair?"),
+        String::from("is-pair"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("pair?", args, 0)?;
+            let val = require_parameter("is-pair", args, 0)?;
 
             Ok(match val {
                 Value::List(_) => Value::True,
