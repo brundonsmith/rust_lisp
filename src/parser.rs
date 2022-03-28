@@ -375,13 +375,7 @@ fn read_atom(token: &str) -> Value {
     }
 
     if token.chars().next().map_or(false, |c| c == '"') {
-        // Empty string edge-case
-        if token.chars().nth(1).map_or(false, |c| c == '"') {
-            return Value::String(String::from(""));
-        }
-
         // TODO: Implement escaped characters
-
         return Value::String(String::from(&token[1..token.chars().count() - 1]));
     }
 
