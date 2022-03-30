@@ -212,7 +212,7 @@ pub fn default_env() -> Env {
                     }
                 })
                 .collect::<Result<List, RuntimeError>>()
-                .map(|l| Value::List(l))
+                .map(Value::List)
         }),
     );
 
@@ -243,7 +243,7 @@ pub fn default_env() -> Env {
                     let end = end.to_i128().ok_or(RuntimeError::new("Failed converting to `i128`"))?;
                 }
             }
-            
+
             Ok(Value::List(
                 (start..end).map(Value::from_int).collect::<List>(),
             ))

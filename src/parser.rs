@@ -69,22 +69,24 @@ fn tokenize(code: &str) -> impl Iterator<Item = &str> {
 
         // strings
         if ch == '"' {
-            let match_end = match_pred(&code[index + 1..], |c| c != '"');
+            if let Some(contents_end_index) = code[index + 1..].find(|c| c == '"') {
+                    let string_end_index = index + contents_end_index + 2;
 
-            if let Some(contents_end_index) = match_end {
-                let string_end_index = index + contents_end_index + 3;
-
-                skip_to = Some(string_end_index);
-                return Some(&code[index..string_end_index]);
+                    skip_to = Some(string_end_index);
+                    return Some(&code[index..string_end_index]);
+            } else {
+                    skip_to = Some(code.len());
+                    return None;
             }
         }
 
         // comments
-        if ch == ';' && code[index + 1..].chars().next().map_or(false, |c| c == ';') {
-            let comment_end =
-                index + 2 + match_pred(&code[index + 2..], |c| c != '\n').unwrap_or(0);
-
-            skip_to = Some(comment_end + 1);
+        if ch == ';' {
+            if let Some(newline_index) = code[index..].find(|c| c == '\n') {
+                skip_to = Some(index + newline_index + 1);
+            } else {
+                skip_to = Some(code.len());
+            }
             return None;
         }
 
@@ -372,9 +374,8 @@ fn read_atom(token: &str) -> Value {
         return Value::Float(as_float);
     }
 
-    if token.chars().next().map_or(false, |c| c == '"')
-        && token.chars().nth_back(0).map_or(false, |c| c == '"')
-    {
+    if token.chars().next().map_or(false, |c| c == '"') {
+        // TODO: Implement escaped characters
         return Value::String(String::from(&token[1..token.chars().count() - 1]));
     }
 

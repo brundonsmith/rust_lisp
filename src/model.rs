@@ -265,6 +265,7 @@ impl PartialOrd for Value {
             },
             Value::Float(n) => match other {
                 Value::Int(o) => {
+                    #[allow(clippy::needless_late_init)]
                     let o_float: FloatType;
 
                     // At these situations I think to myself that adding support for BigInt was a
@@ -338,16 +339,17 @@ mod list {
                     msg: String::from("Attempted to apply car on nil"),
                 })
         }
+        #[must_use]
         pub fn cdr(&self) -> List {
             List {
                 head: self
                     .head
                     .as_ref()
-                    .map(|rc| rc.borrow().cdr.as_ref().cloned())
-                    .flatten(),
+                    .and_then(|rc| rc.borrow().cdr.as_ref().cloned()),
             }
         }
 
+        #[must_use]
         pub fn cons(&self, val: Value) -> List {
             List {
                 head: Some(Rc::new(RefCell::new(ConsCell {
