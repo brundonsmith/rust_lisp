@@ -6,18 +6,18 @@ This is a Lisp interpreter, written in Rust, intended to be embeddable as a
 library in a larger application for scripting purposes. Goals:
 
 - Small footprint (both code size and memory usage)
-- No runtime dependencies*
+- No runtime dependencies [1]
 - Easy, ergonomic interop with native Rust functions
 - Small but practical set of Lisp functionality
 
-* `cfg-if` is build-time, `num-traits` add (I believe) no runtime presence, and
-  `num-bigint` is entirely opt-in (at build time)
+[1] `cfg-if` is build-time, `num-traits` add (I believe) no runtime presence,
+and `num-bigint` is entirely opt-in (at build time)
 
 # Basic Usage
 
 ```rust
 [dependencies]
-rust_lisp = "0.6.0"
+rust_lisp = "0.7.0"
 ```
 
 ```rust
