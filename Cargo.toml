@@ -4,7 +4,7 @@ description = "A Rust-embeddable Lisp, with support for interop with native Rust
 version = "0.7.0"
 authors = ["Brandon Smith"]
 repository = "https://github.com/brundonsmith/rust_lisp"
-edition = "2018"
+edition = "2021"
 exclude = [".github", ".vscode", "TODO.txt"]
 license = "MIT"
 
