@@ -17,7 +17,7 @@ and `num-bigint` is entirely opt-in (at build time)
 
 ```rust
 [dependencies]
-rust_lisp = "0.7.0"
+rust_lisp = "0.7.2"
 ```
 
 ```rust
@@ -151,10 +151,10 @@ fn parse_basic_expression() {
 Special forms: `define`, `set`, `defun`, `lambda`, `quote`, `let`, `begin`,
 `cond`, `if`, `and`, `or`
 
-Functions (in `default_env()`): `print`, `null?`, `number?`, `symbol?`,
-`boolean?`, `procedure?`, `pair?`, `car`, `cdr`, `cons`, `list`, `nth`, `sort`,
-`reverse`, `map`, `filter`, `length`, `range`, `+`, `-`, `*`, `/`, `truncate`,
-`not`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `apply`, `eval`
+Functions (in `default_env()`): `print`, `is-null`, `is-number`, `is-symbol`,
+`is-boolean`, `is-procedure`, `is-pair`, `car`, `cdr`, `cons`, `list`, `nth`,
+`sort`, `reverse`, `map`, `filter`, `length`, `range`, `+`, `-`, `*`, `/`,
+`truncate`, `not`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `apply`, `eval`
 
 Other features:
 
