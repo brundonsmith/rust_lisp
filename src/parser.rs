@@ -70,13 +70,13 @@ fn tokenize(code: &str) -> impl Iterator<Item = &str> {
         // strings
         if ch == '"' {
             if let Some(contents_end_index) = code[index + 1..].find(|c| c == '"') {
-                    let string_end_index = index + contents_end_index + 2;
+                let string_end_index = index + contents_end_index + 2;
 
-                    skip_to = Some(string_end_index);
-                    return Some(&code[index..string_end_index]);
+                skip_to = Some(string_end_index);
+                return Some(&code[index..string_end_index]);
             } else {
-                    skip_to = Some(code.len());
-                    return None;
+                skip_to = Some(code.len());
+                return None;
             }
         }
 
@@ -91,26 +91,33 @@ fn tokenize(code: &str) -> impl Iterator<Item = &str> {
         }
 
         // numbers
-        if ch.is_numeric() {
-            let front_end = index + match_pred(&code[index..], |c| c.is_numeric()).unwrap() + 1;
+        if ch.is_numeric() || ch == '-' {
+            let front_end = index
+                + match_pred(&code[index..], |c, i| {
+                    c.is_numeric() || (i == 0 && ch == '-')
+                })
+                .unwrap()
+                + 1;
 
-            if front_end < code.len() - 1 && &code[front_end..front_end + 1] == "." {
-                let back_end = front_end
-                    + 1
-                    + match_pred(&code[front_end + 1..], |c| c.is_numeric()).unwrap()
-                    + 1;
+            if ch != '-' || front_end - index > 1 {
+                if front_end < code.len() - 1 && &code[front_end..front_end + 1] == "." {
+                    let back_end = front_end
+                        + 1
+                        + match_pred(&code[front_end + 1..], |c, _| c.is_numeric()).unwrap()
+                        + 1;
 
-                skip_to = Some(back_end);
-                return Some(&code[index..back_end]);
-            } else {
-                skip_to = Some(front_end);
-                return Some(&code[index..front_end]);
+                    skip_to = Some(back_end);
+                    return Some(&code[index..back_end]);
+                } else {
+                    skip_to = Some(front_end);
+                    return Some(&code[index..front_end]);
+                }
             }
         }
 
         // symbols
         if is_symbol_start(ch) {
-            let match_end = match_pred(&code[index..], is_symbolic);
+            let match_end = match_pred(&code[index..], |c, _| is_symbolic(c));
 
             if let Some(symbol_last) = match_end {
                 let symbol_end = index + symbol_last + 1;
@@ -141,9 +148,9 @@ fn match_front(code: &str, segment: &str) -> bool {
     segment.chars().zip(code.chars()).all(|(a, b)| a == b)
 }
 
-fn match_pred<F: Fn(char) -> bool>(code: &str, pred: F) -> Option<usize> {
+fn match_pred<F: Fn(char, usize) -> bool>(code: &str, pred: F) -> Option<usize> {
     code.char_indices()
-        .take_while(|(_, c)| pred(*c))
+        .take_while(|(i, c)| pred(*c, *i))
         .last()
         .map(|(i, _)| i)
 }
