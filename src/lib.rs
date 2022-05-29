@@ -6,7 +6,7 @@ mod parser;
 
 pub use default_environment::default_env;
 pub use interpreter::{eval, eval_block};
-pub use parser::parse;
+pub use parser::{parse, ParseError};
 
 pub mod model;
 pub mod utils;

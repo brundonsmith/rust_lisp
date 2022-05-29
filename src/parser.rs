@@ -389,7 +389,7 @@ pub fn parse(code: &str) -> impl Iterator<Item = Result<Value, ParseError>> + '_
     read(tokenize(code))
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParseError {
     pub msg: String,
     // pub line: i32,
