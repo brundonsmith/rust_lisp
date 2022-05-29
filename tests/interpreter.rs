@@ -225,6 +225,17 @@ fn calling_empty_fun() {
     assert_eq!(result, lisp! { () });
 }
 
+#[test]
+fn closure() {
+    let result = eval_str(
+        "
+    (map (let ((x 3)) (lambda (y) (+ x y))) (list 0 1 2 3 4))
+        "
+    );
+    
+    assert_eq!(result, lisp! {(3 4 5 6 7)});
+}
+
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();

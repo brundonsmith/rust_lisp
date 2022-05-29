@@ -353,7 +353,7 @@ fn call_function(
             }
 
             let arg_env = Rc::new(RefCell::new(Env {
-                parent: Some(env),
+                parent: Some(lamb.closure.clone()),
                 entries,
             }));
 
