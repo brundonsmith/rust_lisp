@@ -140,6 +140,28 @@ fn eval_inner(
                             symbol
                         ),
                     })?);
+
+                    // Verify that argnames is a list
+                    if let Some(arglist) = argnames.as_list() {
+                        // Verify that arglist only contains symbols
+                        if let Some(non_argname) = arglist.into_iter().find(|a| !a.as_symbol().is_some()) {
+                            return Err(RuntimeError {
+                                msg: format!(
+                                    "Argument names in function definition for \"{}\" should only contain symbols, got {}",
+                                    symbol,
+                                    non_argname
+                                ),
+                            });
+                        }
+                    } else {
+                        return Err(RuntimeError {
+                            msg: format!(
+                                "Expected argument list in function definition for \"{}\", got {}",
+                                symbol,
+                                argnames
+                            )
+                        });
+                    }
                     let body = Rc::new(Value::List(list_iter.collect::<List>()));
 
                     let lambda = Value::Lambda(Lambda {
@@ -156,6 +178,26 @@ fn eval_inner(
                 Value::Symbol(symbol) if symbol == "lambda" => {
                     let cdr = list.cdr();
                     let argnames = Rc::new(cdr.car()?);
+                    // Verify that argnames is a list
+                    if let Some(arglist) = argnames.as_list() {
+                        // Verify that arglist only contains symbols
+                        if let Some(non_argname) = arglist.into_iter().find(|a| !a.as_symbol().is_some()) {
+                            return Err(RuntimeError {
+                                msg: format!(
+                                    "Argument names in lambda definition should only contain symbols, got {}",
+                                    non_argname
+                                ),
+                            });
+                        }
+                    } else {
+                        return Err(RuntimeError {
+                            msg: format!(
+                                "Expected argument list in lambda definition, got {}",
+                                argnames
+                            )
+                        });
+                    }
+                    
                     let body = Rc::new(Value::List(cdr.cdr()));
 
                     Ok(Value::Lambda(Lambda {

@@ -226,6 +226,18 @@ fn calling_empty_fun() {
 }
 
 #[test]
+#[should_panic]
+fn invalid_fun() {
+    eval_str("(defun my_fn (3) 3)");
+}
+
+#[test]
+#[should_panic]
+fn invalid_lambda() {
+    eval_str("(lambda (3) 3)");
+}
+
+#[test]
 fn closure() {
     let result = eval_str(
         "
