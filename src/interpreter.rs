@@ -141,34 +141,9 @@ fn eval_inner(
                         ),
                     })?);
 
-                    // Verify that argnames is a list
-                    if let Some(arglist) = argnames.as_list() {
-                        // Verify that arglist only contains symbols
-                        if let Some(non_argname) = arglist.into_iter().find(|a| !a.as_symbol().is_some()) {
-                            return Err(RuntimeError {
-                                msg: format!(
-                                    "Argument names in function definition for \"{}\" should only contain symbols, got {}",
-                                    symbol,
-                                    non_argname
-                                ),
-                            });
-                        }
-                    } else {
-                        return Err(RuntimeError {
-                            msg: format!(
-                                "Expected argument list in function definition for \"{}\", got {}",
-                                symbol,
-                                argnames
-                            )
-                        });
-                    }
                     let body = Rc::new(Value::List(list_iter.collect::<List>()));
 
-                    let lambda = Value::Lambda(Lambda {
-                        closure: env.clone(),
-                        argnames,
-                        body,
-                    });
+                    let lambda = Value::Lambda(Lambda::new_with_symbol(env.clone(), argnames, body, &symbol)?);
 
                     env.borrow_mut().entries.insert(symbol, lambda);
 
@@ -177,34 +152,12 @@ fn eval_inner(
 
                 Value::Symbol(symbol) if symbol == "lambda" => {
                     let cdr = list.cdr();
-                    let argnames = Rc::new(cdr.car()?);
-                    // Verify that argnames is a list
-                    if let Some(arglist) = argnames.as_list() {
-                        // Verify that arglist only contains symbols
-                        if let Some(non_argname) = arglist.into_iter().find(|a| !a.as_symbol().is_some()) {
-                            return Err(RuntimeError {
-                                msg: format!(
-                                    "Argument names in lambda definition should only contain symbols, got {}",
-                                    non_argname
-                                ),
-                            });
-                        }
-                    } else {
-                        return Err(RuntimeError {
-                            msg: format!(
-                                "Expected argument list in lambda definition, got {}",
-                                argnames
-                            )
-                        });
-                    }
-                    
+                    let argnames = Rc::new(cdr.car().map_err(|_| RuntimeError::new(
+                        "Expected argument list in function definition for lambda",
+                    ))?);
                     let body = Rc::new(Value::List(cdr.cdr()));
 
-                    Ok(Value::Lambda(Lambda {
-                        closure: env,
-                        argnames,
-                        body,
-                    }))
+                    Ok(Value::Lambda(Lambda::new(env.clone(), argnames, body)?))
                 }
 
                 Value::Symbol(symbol) if symbol == "quote" => {
@@ -369,7 +322,7 @@ fn call_function(
 
         // call lambda function
         Value::Lambda(lamb) => {
-            let argnames = lamb.argnames.as_list().unwrap();
+            let argnames = lamb.argnames();
 
             // bind args
             let mut entries: HashMap<String, Value> = HashMap::new();

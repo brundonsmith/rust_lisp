@@ -469,8 +469,52 @@ mod list {
 #[derive(Debug, Clone)]
 pub struct Lambda {
     pub closure: Rc<RefCell<Env>>,
-    pub argnames: Rc<Value>,
+    // Invariant: `argnames` is a `List` or `Symbol`s
+    argnames: Rc<List>,
     pub body: Rc<Value>,
+}
+
+impl Lambda {
+    /// Creates a new Lambda instance, verifying the integrity of `argnames`
+    pub fn new(closure: Rc<RefCell<Env>>, argnames: Rc<Value>, body: Rc<Value>) -> Result<Lambda, RuntimeError> {
+        Self::new_with_symbol(closure, argnames, body, "lambda")
+    }
+
+    /// Creates a new Lambda instance, verifying the integrity of `argnames`. `symbol` will be used in the error messages if an error is encountered
+    pub fn new_with_symbol(closure: Rc<RefCell<Env>>, argnames: Rc<Value>, body: Rc<Value>, symbol: &str) -> Result<Lambda, RuntimeError> {
+        // Verify that argnames is a list
+        if let Some(argnames) = argnames.as_list() {
+            // Verify that argnames only contains symbols
+            if let Some(non_argname) = argnames.into_iter().find(|a| !a.as_symbol().is_some()) {
+                return Err(RuntimeError {
+                    msg: format!(
+                        "Argument names in function definition for \"{}\" should only contain symbols, got {}",
+                        symbol,
+                        non_argname
+                    ),
+                });
+            }
+
+            Ok(Self {
+                closure,
+                argnames: Rc::new(argnames),
+                body
+            })
+        } else {
+            Err(RuntimeError {
+                msg: format!(
+                    "Expected argument list in function definition for \"{}\", got {}",
+                    symbol,
+                    argnames
+                )
+            })
+        }
+    }
+
+    /// Returns the argument names of the function as a `List`. This list should only contain `Symbol`s.
+    pub fn argnames(&self) -> Rc<List> {
+        self.argnames.clone()
+    }
 }
 
 impl PartialEq for Lambda {
