@@ -236,35 +236,6 @@ fn closure() {
     assert_eq!(result, lisp! {(3 4 5 6 7)});
 }
 
-#[test]
-fn map_list_of_lists() {
-    let result = eval_str(
-        "
-        (map (lambda (x) x) (list (list 0 1) (list 2 3)))
-      ",
-    );
-
-    assert_eq!(result, lisp! {((0 1) (2 3))});
-}
-
-#[test]
-fn filter_list_of_lists() {
-    let result = eval_str(
-        "
-        (filter (lambda (x) (> (length x) 2))
-          (list
-            (list 0)
-            (list 0 1)
-            (list 0 1 2)
-            (list 0 1 2 3)))
-      ",
-    );
-
-    println!("{}", result);
-
-    assert_eq!(result, lisp! {((0 1 2) (0 1 2 3))});
-}
-
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();

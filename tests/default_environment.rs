@@ -79,6 +79,31 @@ fn filter() {
     );
 }
 
+#[test]
+fn map_list_of_lists() {
+    let result = eval_ast(lisp! {
+        (map (lambda (x) x) (list (list 0 1) (list 2 3)))
+    });
+
+    assert_eq!(result, lisp! {((0 1) (2 3))});
+}
+
+#[test]
+fn filter_list_of_lists() {
+    let result = eval_ast(lisp! {
+        (filter (lambda (x) (> (length x) 2))
+            (list
+                (list 0)
+                (list 0 1)
+                (list 0 1 2)
+                (list 0 1 2 3)))
+    });
+
+    println!("{}", result);
+
+    assert_eq!(result, lisp! {((0 1 2) (0 1 2 3))});
+}
+
 #[cfg(test)]
 fn eval_ast(ast: Value) -> Value {
     let env = Rc::new(RefCell::new(default_env()));
