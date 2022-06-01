@@ -182,7 +182,7 @@ pub fn default_env() -> Env {
 
             list.into_iter()
                 .map(|val| {
-                    let expr = lisp! { ({func.clone()} {val}) };
+                    let expr = lisp! { ({func.clone()} (quote {val})) };
 
                     eval(env.clone(), &expr)
                 })
@@ -200,10 +200,9 @@ pub fn default_env() -> Env {
 
             list.into_iter()
                 .filter_map(|val: Value| -> Option<Result<Value, RuntimeError>> {
-                    let expr = Value::List([func.clone(), val.clone()].iter().collect());
-                    let res = eval(env.clone(), &expr);
+                    let expr = lisp! { ({func.clone()} (quote {val.clone()})) };
 
-                    match res {
+                    match eval(env.clone(), &expr) {
                         Ok(matches) => match matches.is_truthy() {
                             true => Some(Ok(val)),
                             false => None,
