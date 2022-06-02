@@ -1,4 +1,4 @@
-use crate::model::{Env, Lambda, List, RuntimeError, Value};
+use crate::model::{Env, Lambda, List, RuntimeError, Symbol, Value};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 /// Evaluate a single Lisp expression in the context of a given environment.
@@ -58,7 +58,7 @@ fn eval_inner(
 ) -> Result<Value, RuntimeError> {
     let result: Result<Value, RuntimeError> = match expression {
         // look up symbol
-        Value::Symbol(symbol) => match env.borrow().find(symbol) {
+        Value::Symbol(Symbol(symbol)) => match env.borrow().find(symbol) {
             Some(expr) => Ok(expr),
             None => Err(RuntimeError {
                 msg: format!("\"{}\" is not defined", symbol),
@@ -71,7 +71,7 @@ fn eval_inner(
         Value::List(list) => {
             match &list.car()? {
                 // special forms
-                Value::Symbol(symbol) if symbol == "define" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "define" => {
                     let cdr = list.cdr();
                     let symbol = cdr.car()?;
                     let symbol = symbol.as_symbol().ok_or(RuntimeError {
@@ -89,7 +89,7 @@ fn eval_inner(
                     Ok(value)
                 }
 
-                Value::Symbol(symbol) if symbol == "set" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "set" => {
                     let cdr = list.cdr();
                     let symbol = cdr.car()?.as_symbol().unwrap();
                     let value_expr = &cdr.cdr().car()?;
@@ -123,7 +123,7 @@ fn eval_inner(
                     Ok(value)
                 }
 
-                Value::Symbol(symbol) if symbol == "defun" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "defun" => {
                     let mut list_iter = list.into_iter();
                     list_iter.next().unwrap(); // skip "defun"
                     let symbol = list_iter.next().unwrap();
@@ -134,12 +134,12 @@ fn eval_inner(
                             symbol.type_name()
                         ),
                     })?;
-                    let argnames = Rc::new(list_iter.next().ok_or(RuntimeError {
+                    let argnames = value_to_argnames(list_iter.next().ok_or(RuntimeError {
                         msg: format!(
                             "Expected argument list in function definition for \"{}\"",
                             symbol
                         ),
-                    })?);
+                    })?)?;
                     let body = Rc::new(Value::List(list_iter.collect::<List>()));
 
                     let lambda = Value::Lambda(Lambda {
@@ -153,9 +153,9 @@ fn eval_inner(
                     Ok(Value::NIL)
                 }
 
-                Value::Symbol(symbol) if symbol == "lambda" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "lambda" => {
                     let cdr = list.cdr();
-                    let argnames = Rc::new(cdr.car()?);
+                    let argnames = value_to_argnames(cdr.car()?)?;
                     let body = Rc::new(Value::List(cdr.cdr()));
 
                     Ok(Value::Lambda(Lambda {
@@ -165,13 +165,13 @@ fn eval_inner(
                     }))
                 }
 
-                Value::Symbol(symbol) if symbol == "quote" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "quote" => {
                     let exp = list.cdr().car()?;
 
                     Ok(exp)
                 }
 
-                Value::Symbol(symbol) if symbol == "let" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "let" => {
                     let let_env = Rc::new(RefCell::new(Env {
                         parent: Some(env),
                         entries: HashMap::new(),
@@ -197,7 +197,7 @@ fn eval_inner(
                     )
                 }
 
-                Value::Symbol(symbol) if symbol == "begin" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "begin" => {
                     let body = Value::List(list.cdr());
 
                     eval_block_inner(
@@ -208,7 +208,7 @@ fn eval_inner(
                     )
                 }
 
-                Value::Symbol(symbol) if symbol == "cond" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "cond" => {
                     let clauses = list.cdr();
                     let mut result = Value::NIL;
 
@@ -225,7 +225,7 @@ fn eval_inner(
                     Ok(result)
                 }
 
-                Value::Symbol(symbol) if symbol == "if" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "if" => {
                     let cdr = list.cdr();
                     let condition = &cdr.car()?;
                     let then_result = &cdr.cdr().car()?;
@@ -241,7 +241,7 @@ fn eval_inner(
                     }
                 }
 
-                Value::Symbol(symbol) if symbol == "and" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "and" => {
                     let cdr = list.cdr();
                     let a = &cdr.car()?;
                     let b = &cdr.cdr().car()?;
@@ -252,7 +252,7 @@ fn eval_inner(
                     ))
                 }
 
-                Value::Symbol(symbol) if symbol == "or" => {
+                Value::Symbol(Symbol(symbol)) if symbol == "or" => {
                     let cdr = list.cdr();
                     let a = &cdr.car()?;
                     let b = &cdr.cdr().car()?;
@@ -304,6 +304,29 @@ fn eval_inner(
 }
 // 🦀 Boo! Did I scare ya? Haha!
 
+fn value_to_argnames(argnames: Value) -> Result<Vec<Symbol>, RuntimeError> {
+    if let Value::List(argnames) = argnames {
+        argnames
+            .into_iter()
+            .enumerate()
+            .map(|(index, arg)| match arg {
+                Value::Symbol(s) => Ok(s),
+                _ => Err(RuntimeError {
+                    msg: format!(
+                        "Expected list of arg names, but arg {} is a {}",
+                        index,
+                        arg.type_name()
+                    ),
+                }),
+            })
+            .collect()
+    } else {
+        Err(RuntimeError {
+            msg: format!("Expected list of arg names, received \"{}\"", argnames),
+        })
+    }
+}
+
 /// Calling a function is separated from the main `eval_inner()` function
 /// so that tail calls can be evaluated without just returning themselves
 /// as-is as a tail-call.
@@ -327,15 +350,11 @@ fn call_function(
 
         // call lambda function
         Value::Lambda(lamb) => {
-            let argnames = lamb.argnames.as_list().unwrap();
-
             // bind args
             let mut entries: HashMap<String, Value> = HashMap::new();
 
-            for (index, arg_name) in argnames.into_iter().enumerate() {
-                let name = arg_name.as_symbol().unwrap();
-
-                if name == "..." {
+            for (index, arg_name) in lamb.argnames.iter().enumerate() {
+                if arg_name.0 == "..." {
                     // rest parameters
                     entries.insert(
                         String::from("..."),
@@ -348,7 +367,7 @@ fn call_function(
                     );
                     break;
                 } else {
-                    entries.insert(name, args[index].clone()?);
+                    entries.insert(arg_name.0.clone(), args[index].clone()?);
                 }
             }
 

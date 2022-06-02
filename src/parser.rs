@@ -1,6 +1,6 @@
 use crate::{
     lisp,
-    model::{FloatType, IntType, List, Value},
+    model::{FloatType, IntType, List, Symbol, Value},
 };
 
 use std::fmt::Display;
@@ -386,7 +386,7 @@ fn read_atom(token: &str) -> Value {
         return Value::String(String::from(&token[1..token.chars().count() - 1]));
     }
 
-    Value::Symbol(String::from(token))
+    Value::Symbol(Symbol(String::from(token)))
 }
 
 /// Parse a string of Lisp code into a series of s-expressions. There

@@ -1,7 +1,7 @@
 use crate::{
     interpreter::eval,
     lisp,
-    model::{Env, List, RuntimeError, Value},
+    model::{Env, List, RuntimeError, Symbol, Value},
     utils::{require_int_parameter, require_list_parameter, require_parameter},
 };
 use cfg_if::cfg_if;

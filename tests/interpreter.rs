@@ -1,9 +1,10 @@
 use rust_lisp::default_env;
 use rust_lisp::eval;
+use rust_lisp::model::RuntimeError;
 use rust_lisp::parse;
 use rust_lisp::{
     lisp,
-    model::{List, Value},
+    model::{List, Symbol, Value},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -46,7 +47,7 @@ fn eval_quote_tick_atom() {
 fn eval_quote_tick_symbol() {
     let result = eval_str("(nth 0 (list 'foo))");
 
-    assert_eq!(result, Value::Symbol(String::from("foo")));
+    assert_eq!(result, Value::Symbol(Symbol(String::from("foo"))));
 }
 
 #[test]
@@ -234,6 +235,26 @@ fn closure() {
     );
 
     assert_eq!(result, lisp! {(3 4 5 6 7)});
+}
+
+#[test]
+fn lambda_err() {
+    let ast = parse(
+        "
+      (defun foo (f) f)",
+    )
+    .next()
+    .unwrap()
+    .unwrap();
+    let env = Rc::new(RefCell::new(default_env()));
+    let result = eval(env, &ast);
+
+    assert_eq!(
+        result,
+        Err(RuntimeError {
+            msg: String::from("Expected list of arg names, but arg 0 is a F")
+        })
+    );
 }
 
 #[cfg(test)]

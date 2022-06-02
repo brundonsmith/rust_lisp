@@ -17,19 +17,19 @@ macro_rules! lisp {
 
     // Symbols
     ($sym:ident) => {
-        Value::Symbol(String::from(stringify!( $sym )))
+        Value::Symbol(Symbol(String::from(stringify!( $sym ))))
     };
     // these aren't valid Rust identifiers
-    ( + ) =>  { Value::Symbol(String::from("+")) };
-    ( - ) =>  { Value::Symbol(String::from("-")) };
-    ( * ) =>  { Value::Symbol(String::from("*")) };
-    ( / ) =>  { Value::Symbol(String::from("/")) };
-    ( == ) => { Value::Symbol(String::from("==")) };
-    ( != ) => { Value::Symbol(String::from("!=")) };
-    ( < ) =>  { Value::Symbol(String::from("<")) };
-    ( <= ) => { Value::Symbol(String::from("<=")) };
-    ( > ) =>  { Value::Symbol(String::from(">")) };
-    ( >= ) => { Value::Symbol(String::from(">=")) };
+    ( + ) =>  { Value::Symbol(Symbol(String::from("+"))) };
+    ( - ) =>  { Value::Symbol(Symbol(String::from("-"))) };
+    ( * ) =>  { Value::Symbol(Symbol(String::from("*"))) };
+    ( / ) =>  { Value::Symbol(Symbol(String::from("/"))) };
+    ( == ) => { Value::Symbol(Symbol(String::from("=="))) };
+    ( != ) => { Value::Symbol(Symbol(String::from("!="))) };
+    ( < ) =>  { Value::Symbol(Symbol(String::from("<"))) };
+    ( <= ) => { Value::Symbol(Symbol(String::from("<="))) };
+    ( > ) =>  { Value::Symbol(Symbol(String::from(">"))) };
+    ( >= ) => { Value::Symbol(Symbol(String::from(">="))) };
 
 
     // Literals

@@ -38,12 +38,15 @@ pub enum Value {
     Int(IntType),
     Float(FloatType),
     String(String),
-    Symbol(String),
+    Symbol(Symbol),
     List(List),
     NativeFunc(NativeFunc),
     Lambda(Lambda),
     TailCall { func: Rc<Value>, args: Vec<Value> },
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Symbol(pub String);
 
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
@@ -121,7 +124,7 @@ impl Value {
 
     pub fn as_symbol(&self) -> Option<String> {
         match self {
-            Value::Symbol(name) => Some(name.clone()),
+            Value::Symbol(Symbol(name)) => Some(name.clone()),
             _ => None,
         }
     }
@@ -137,8 +140,12 @@ impl Display for Value {
                 let body_str = format!("{}", &n.body);
                 return write!(
                     formatter,
-                    "<func:(lambda {} {})>",
-                    n.argnames,
+                    "<func:(lambda ({}) {})>",
+                    n.argnames
+                        .iter()
+                        .map(|sym| sym.0.as_str())
+                        .collect::<Vec<&str>>()
+                        .join(" "),
                     &body_str[1..body_str.chars().count() - 1]
                 );
             }
@@ -146,7 +153,7 @@ impl Display for Value {
             Value::List(n) => write!(formatter, "{}", n),
             Value::Int(n) => write!(formatter, "{}", n),
             Value::Float(n) => write!(formatter, "{}", n),
-            Value::Symbol(n) => write!(formatter, "{}", n),
+            Value::Symbol(Symbol(n)) => write!(formatter, "{}", n),
             Value::TailCall { func, args } => {
                 write!(formatter, "<tail-call: {:?} with {:?} >", func, args)
             }
@@ -166,7 +173,7 @@ impl Debug for Value {
             Value::List(n) => write!(formatter, "Value::List({:?})", n),
             Value::Int(n) => write!(formatter, "Value::Int({:?})", n),
             Value::Float(n) => write!(formatter, "Value::Float({:?})", n),
-            Value::Symbol(n) => write!(formatter, "Value::Symbol({:?})", n),
+            Value::Symbol(Symbol(n)) => write!(formatter, "Value::Symbol({:?})", n),
             Value::TailCall { func, args } => write!(
                 formatter,
                 "Value::TailCall {{ func: {:?}, args: {:?} }}",
@@ -202,8 +209,8 @@ impl PartialEq for Value {
                 Value::Float(o) => n == o,
                 _ => false,
             },
-            Value::Symbol(n) => match other {
-                Value::Symbol(o) => n == o,
+            Value::Symbol(Symbol(n)) => match other {
+                Value::Symbol(Symbol(o)) => n == o,
                 _ => false,
             },
             Value::TailCall { func, args } => match other {
@@ -243,8 +250,8 @@ impl PartialOrd for Value {
                     None
                 }
             }
-            Value::Symbol(n) => {
-                if let Value::Symbol(s) = other {
+            Value::Symbol(Symbol(n)) => {
+                if let Value::Symbol(Symbol(s)) = other {
                     n.partial_cmp(s)
                 } else {
                     None
@@ -469,7 +476,7 @@ mod list {
 #[derive(Debug, Clone)]
 pub struct Lambda {
     pub closure: Rc<RefCell<Env>>,
-    pub argnames: Rc<Value>,
+    pub argnames: Vec<Symbol>,
     pub body: Rc<Value>,
 }
 
