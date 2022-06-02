@@ -493,7 +493,7 @@ type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, 
 
 // 🦀 Ferris thinks... Maybe we should turn this struct into enum? Some things we can put in stack
 // rather than allocating memory for yet another `String`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeError {
     pub msg: String,
 }
