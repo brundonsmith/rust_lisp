@@ -141,8 +141,9 @@ pub fn default_env() -> Env {
             let index = require_int_parameter("nth", args, 0)?;
             let list = require_list_parameter("nth", args, 1)?;
 
-            let index = TryInto::<usize>::try_into(index)
-                .map_err(|_| RuntimeError::new("Failed converting to `usize`"))?;
+            let index = TryInto::<usize>::try_into(index).map_err(|_| RuntimeError {
+                msg: "Failed converting to `usize`".to_owned(),
+            })?;
 
             Ok(list.into_iter().nth(index).unwrap_or(Value::NIL))
         }),
@@ -238,8 +239,8 @@ pub fn default_env() -> Env {
 
             cfg_if! {
                 if #[cfg(feature = "bigint")] {
-                    let start = start.to_i128().ok_or(RuntimeError::new("Failed converting to `i128`"))?;
-                    let end = end.to_i128().ok_or(RuntimeError::new("Failed converting to `i128`"))?;
+                    let start = start.to_i128().ok_or(RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
+                    let end = end.to_i128().ok_or(RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
                 }
             }
 
