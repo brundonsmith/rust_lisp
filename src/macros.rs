@@ -1,5 +1,5 @@
 /// A macro for more easily creating s-expressions from within Rust code
-/// ```
+/// ```ignore
 /// use rust_lisp::prelude::*;
 ///
 /// fn parse_basic_expression() {
