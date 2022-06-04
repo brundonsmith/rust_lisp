@@ -1,17 +1,16 @@
 #![forbid(unsafe_code)]
 
-mod default_environment;
-mod interpreter;
-mod parser;
-
-pub use default_environment::default_env;
-pub use interpreter::{eval, eval_block};
-pub use parser::{parse, ParseError};
-
+pub mod interpreter;
 pub mod model;
+pub mod parser;
 pub mod utils;
+
+mod default_environment;
+pub use default_environment::default_env;
+
 #[macro_use]
-pub mod macros;
+mod macros;
+pub use macros::prelude;
 
 use model::Env;
 use std::io::{self, prelude::*};
@@ -25,7 +24,10 @@ pub fn start_repl(env: Option<Env>) {
     print!("> ");
     io::stdout().flush().unwrap();
     for line in io::stdin().lock().lines() {
-        match eval_block(env_rc.clone(), parse(&line.unwrap()).filter_map(|a| a.ok())) {
+        match interpreter::eval_block(
+            env_rc.clone(),
+            parser::parse(&line.unwrap()).filter_map(|a| a.ok()),
+        ) {
             Ok(val) => println!("{}", val),
             Err(e) => println!("{}", e),
         };

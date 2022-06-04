@@ -23,7 +23,7 @@ rust_lisp = "0.10.0"
 ```rust
 use std::{cell::RefCell, rc::Rc};
 
-use rust_lisp::{parse,eval,default_env};
+use rust_lisp::prelude::*;
 
 fn main() {
 

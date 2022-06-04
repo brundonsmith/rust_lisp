@@ -1,10 +1,9 @@
-use rust_lisp::default_env;
-use rust_lisp::eval;
-use rust_lisp::model::RuntimeError;
-use rust_lisp::parse;
 use rust_lisp::{
+    default_env,
+    interpreter::eval,
     lisp,
-    model::{List, Symbol, Value},
+    model::{List, RuntimeError, Symbol, Value},
+    parser::parse,
 };
 use std::{cell::RefCell, rc::Rc};
 

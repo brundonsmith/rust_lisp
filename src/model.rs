@@ -21,12 +21,18 @@ cfg_if! {
     else if #[cfg(feature = "i64")]    { pub type IntType = i64;    }
     else if #[cfg(feature = "i16")]    { pub type IntType = i16;    }
     else if #[cfg(feature = "i8")]     { pub type IntType = i8;     }
-    else                               { pub type IntType = i32;    }
+    else                               {
+        /// The underlying type to use for storing lisp integers. Controlled via feature-flags.
+        pub type IntType = i32;
+    }
 }
 
 cfg_if! {
     if #[cfg(feature = "f64")] { pub type FloatType = f64; }
-    else                       { pub type FloatType = f32; }
+    else                       {
+        /// The underlying type to use for storing lisp floats. Controlled via feature-flags.
+        pub type FloatType = f32;
+    }
 }
 
 /// `Value` encompasses all possible Lisp values, including atoms, lists, and
@@ -45,6 +51,10 @@ pub enum Value {
     TailCall { func: Rc<Value>, args: Vec<Value> },
 }
 
+/**
+ * A String [newtype](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html)
+ * representing a lisp symbol (identifier)
+ */
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol(pub String);
 
@@ -330,6 +340,9 @@ mod list {
     use std::iter::FromIterator;
     use std::rc::Rc;
 
+    /**
+     * A Lisp list, implemented as a linked-list
+     */
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct List {
         head: Option<Rc<RefCell<ConsCell>>>,
@@ -491,8 +504,9 @@ impl PartialEq for Lambda {
 /// The trait bound for any Rust function that is to be called from lisp code
 type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 
-// 🦀 Ferris thinks... Maybe we should turn this struct into enum? Some things we can put in stack
-// rather than allocating memory for yet another `String`
+/**
+ * An error that occurred while evaluating some lisp code
+ */
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeError {
     pub msg: String,

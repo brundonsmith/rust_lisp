@@ -1,6 +1,6 @@
 use rust_lisp::{
     model::{List, Symbol, Value},
-    parse, ParseError,
+    parser::{parse, ParseError},
 };
 
 #[macro_use]

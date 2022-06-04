@@ -51,6 +51,9 @@ impl ParseTree {
     }
 }
 
+/**
+ * An error that occurred while parsing a string as lisp code
+ */
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
     pub msg: String,

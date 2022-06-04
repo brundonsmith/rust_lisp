@@ -10,7 +10,7 @@ mod macros;
 
 use std::{cell::RefCell, rc::Rc};
 
-use rust_lisp::{default_env, eval_block, parse, start_repl};
+use rust_lisp::{default_env, interpreter::eval_block, parser::parse, start_repl};
 
 // 🦀 Try finding me! I'm hidden all around the code!
 

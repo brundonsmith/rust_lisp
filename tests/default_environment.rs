@@ -1,7 +1,9 @@
 use rust_lisp::{
-    default_env, eval, lisp,
+    default_env,
+    interpreter::eval,
+    lisp,
     model::{List, Symbol, Value},
-    parse,
+    parser::parse,
 };
 use std::{cell::RefCell, rc::Rc};
 
