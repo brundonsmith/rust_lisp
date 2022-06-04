@@ -91,7 +91,10 @@ fn eval_inner(
 
                 Value::Symbol(Symbol(symbol)) if symbol == "set" => {
                     let cdr = list.cdr();
-                    let symbol = cdr.car()?.as_symbol().unwrap();
+                    let arg1 = cdr.car()?;
+                    let symbol = arg1.as_symbol().ok_or(RuntimeError {
+                        msg: format!("{} is not a valid set target", arg1),
+                    })?;
                     let value_expr = &cdr.cdr().car()?;
                     let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
@@ -125,8 +128,10 @@ fn eval_inner(
 
                 Value::Symbol(Symbol(symbol)) if symbol == "defun" => {
                     let mut list_iter = list.into_iter();
-                    list_iter.next().unwrap(); // skip "defun"
-                    let symbol = list_iter.next().unwrap();
+                    list_iter.next(); // skip "defun"
+                    let symbol = list_iter.next().ok_or(RuntimeError {
+                        msg: "Expected function name".to_owned(),
+                    })?;
                     let symbol = symbol.as_symbol().ok_or(RuntimeError {
                         msg: format!(
                             "Function name must by a symbol; received \"{}\", which is a {}",
@@ -178,9 +183,20 @@ fn eval_inner(
                     }));
                     let declarations = list.cdr().car()?;
 
-                    for decl in declarations.as_list().unwrap().into_iter() {
-                        let decl_cons = decl.as_list().unwrap();
-                        let symbol = decl_cons.car()?.as_symbol().unwrap();
+                    for decl in declarations
+                        .as_list()
+                        .ok_or(RuntimeError {
+                            msg: "Expected list of declarations for let form".to_owned(),
+                        })?
+                        .into_iter()
+                    {
+                        let decl_cons = decl.as_list().ok_or(RuntimeError {
+                            msg: format!("Expected declaration clause, found {}", decl),
+                        })?;
+                        let symbol = decl_cons.car()?;
+                        let symbol = symbol.as_symbol().ok_or(RuntimeError {
+                            msg: format!("Expected symbol for let declaration, found {}", symbol),
+                        })?;
                         let expr = &decl_cons.cdr().car()?;
 
                         let result = eval_inner(let_env.clone(), expr, true, in_func)?;
@@ -191,7 +207,14 @@ fn eval_inner(
 
                     eval_block_inner(
                         let_env,
-                        body.as_list().unwrap().into_iter(),
+                        body.as_list()
+                            .ok_or(RuntimeError {
+                                msg: format!(
+                                    "Expected expression(s) after let-declarations, found {}",
+                                    body
+                                ),
+                            })?
+                            .into_iter(),
                         found_tail,
                         in_func,
                     )
@@ -212,7 +235,11 @@ fn eval_inner(
                     let clauses = list.cdr();
                     let mut result = Value::NIL;
 
-                    for clause in clauses.into_iter().map(|clause| clause.as_list().unwrap()) {
+                    for clause in clauses.into_iter() {
+                        let clause = clause.as_list().ok_or(RuntimeError {
+                            msg: format!("Expected conditional clause, found {}", clause),
+                        })?;
+
                         let condition = &clause.car()?;
                         let then = &clause.cdr().car()?;
 
