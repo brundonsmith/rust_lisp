@@ -512,12 +512,6 @@ pub struct RuntimeError {
     pub msg: String,
 }
 
-impl RuntimeError {
-    pub fn new(s: impl Into<String>) -> RuntimeError {
-        RuntimeError { msg: s.into() }
-    }
-}
-
 impl Display for RuntimeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(formatter, "Runtime error: {}", self.msg)

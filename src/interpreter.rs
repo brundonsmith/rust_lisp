@@ -39,7 +39,9 @@ fn eval_block_inner(
     if let Some(expr) = &current_expr {
         eval_inner(env, expr, found_tail, in_func)
     } else {
-        Err(RuntimeError::new("Unrecognized expression"))
+        Err(RuntimeError {
+            msg: "Unrecognized expression".to_owned(),
+        })
     }
 }
 
