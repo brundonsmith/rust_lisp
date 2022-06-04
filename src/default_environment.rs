@@ -239,8 +239,8 @@ pub fn default_env() -> Env {
 
             cfg_if! {
                 if #[cfg(feature = "bigint")] {
-                    let start = start.to_i128().ok_or(RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
-                    let end = end.to_i128().ok_or(RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
+                    let start = start.to_i128().ok_or_else(|| RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
+                    let end = end.to_i128().ok_or_else(|| RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
                 }
             }
 

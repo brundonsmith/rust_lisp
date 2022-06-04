@@ -76,7 +76,7 @@ fn eval_inner(
                 Value::Symbol(Symbol(symbol)) if symbol == "define" => {
                     let cdr = list.cdr();
                     let symbol = cdr.car()?;
-                    let symbol = symbol.as_symbol().ok_or(RuntimeError {
+                    let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
                         msg: format!(
                             "Symbol required for definition; received \"{}\", which is a {}",
                             symbol,
@@ -94,7 +94,7 @@ fn eval_inner(
                 Value::Symbol(Symbol(symbol)) if symbol == "set" => {
                     let cdr = list.cdr();
                     let arg1 = cdr.car()?;
-                    let symbol = arg1.as_symbol().ok_or(RuntimeError {
+                    let symbol = arg1.as_symbol().ok_or_else(|| RuntimeError {
                         msg: format!("{} is not a valid set target", arg1),
                     })?;
                     let value_expr = &cdr.cdr().car()?;
@@ -131,22 +131,23 @@ fn eval_inner(
                 Value::Symbol(Symbol(symbol)) if symbol == "defun" => {
                     let mut list_iter = list.into_iter();
                     list_iter.next(); // skip "defun"
-                    let symbol = list_iter.next().ok_or(RuntimeError {
+                    let symbol = list_iter.next().ok_or_else(|| RuntimeError {
                         msg: "Expected function name".to_owned(),
                     })?;
-                    let symbol = symbol.as_symbol().ok_or(RuntimeError {
+                    let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
                         msg: format!(
                             "Function name must by a symbol; received \"{}\", which is a {}",
                             symbol,
                             symbol.type_name()
                         ),
                     })?;
-                    let argnames = value_to_argnames(list_iter.next().ok_or(RuntimeError {
-                        msg: format!(
-                            "Expected argument list in function definition for \"{}\"",
-                            symbol
-                        ),
-                    })?)?;
+                    let argnames =
+                        value_to_argnames(list_iter.next().ok_or_else(|| RuntimeError {
+                            msg: format!(
+                                "Expected argument list in function definition for \"{}\"",
+                                symbol
+                            ),
+                        })?)?;
                     let body = Rc::new(Value::List(list_iter.collect::<List>()));
 
                     let lambda = Value::Lambda(Lambda {
@@ -187,16 +188,16 @@ fn eval_inner(
 
                     for decl in declarations
                         .as_list()
-                        .ok_or(RuntimeError {
+                        .ok_or_else(|| RuntimeError {
                             msg: "Expected list of declarations for let form".to_owned(),
                         })?
                         .into_iter()
                     {
-                        let decl_cons = decl.as_list().ok_or(RuntimeError {
+                        let decl_cons = decl.as_list().ok_or_else(|| RuntimeError {
                             msg: format!("Expected declaration clause, found {}", decl),
                         })?;
                         let symbol = decl_cons.car()?;
-                        let symbol = symbol.as_symbol().ok_or(RuntimeError {
+                        let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
                             msg: format!("Expected symbol for let declaration, found {}", symbol),
                         })?;
                         let expr = &decl_cons.cdr().car()?;
@@ -210,7 +211,7 @@ fn eval_inner(
                     eval_block_inner(
                         let_env,
                         body.as_list()
-                            .ok_or(RuntimeError {
+                            .ok_or_else(|| RuntimeError {
                                 msg: format!(
                                     "Expected expression(s) after let-declarations, found {}",
                                     body
@@ -238,7 +239,7 @@ fn eval_inner(
                     let mut result = Value::NIL;
 
                     for clause in clauses.into_iter() {
-                        let clause = clause.as_list().ok_or(RuntimeError {
+                        let clause = clause.as_list().ok_or_else(|| RuntimeError {
                             msg: format!("Expected conditional clause, found {}", clause),
                         })?;
 
