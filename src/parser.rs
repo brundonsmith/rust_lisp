@@ -1,6 +1,6 @@
 use crate::{
     lisp,
-    model::{List, Symbol, Value},
+    model::{FloatType, IntType, List, Symbol, Value},
 };
 
 use std::fmt::Display;
@@ -215,7 +215,11 @@ fn parse_number(code: &str, index: usize) -> ParseResult {
             let back_last_index = back_last_index + 1;
 
             if back_last_index >= front_last_index + 2 {
-                if let Ok(float) = code.get(index..back_last_index).unwrap_or("").parse() {
+                if let Ok(float) = code
+                    .get(index..back_last_index)
+                    .unwrap_or("")
+                    .parse::<FloatType>()
+                {
                     return Some(Ok(ParsedAndIndex {
                         parsed: ParseTree::Atom(Value::Float(float)),
                         index: back_last_index,
@@ -224,7 +228,11 @@ fn parse_number(code: &str, index: usize) -> ParseResult {
             }
         }
 
-        if let Ok(int) = code.get(index..front_last_index).unwrap_or("").parse() {
+        if let Ok(int) = code
+            .get(index..front_last_index)
+            .unwrap_or("")
+            .parse::<IntType>()
+        {
             return Some(Ok(ParsedAndIndex {
                 parsed: ParseTree::Atom(Value::Int(int)),
                 index: front_last_index,
