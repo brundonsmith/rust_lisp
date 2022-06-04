@@ -149,19 +149,10 @@ fn parse_quoted(code: &str, index: usize) -> ParseResult {
     }
 }
 
-fn next_is_symbolic(code: &str, index: usize) -> bool {
-    code.get(index..)
-        .map(|s| s.chars().next())
-        .flatten()
-        .map(is_symbolic)
-        .unwrap_or(false)
-}
-
 fn parse_nil(code: &str, index: usize) -> ParseResult {
     let index = consume(code, index, "nil")?;
-    let terminates = !next_is_symbolic(code, index);
 
-    if terminates {
+    if next_char_is_break(code, index) {
         Some(Ok(ParsedAndIndex {
             parsed: ParseTree::Atom(Value::NIL),
             index,
@@ -173,9 +164,8 @@ fn parse_nil(code: &str, index: usize) -> ParseResult {
 
 fn parse_false(code: &str, index: usize) -> ParseResult {
     let index = consume(code, index, "f")?;
-    let terminates = !next_is_symbolic(code, index);
 
-    if terminates {
+    if next_char_is_break(code, index) {
         Some(Ok(ParsedAndIndex {
             parsed: ParseTree::Atom(Value::False),
             index,
@@ -187,9 +177,8 @@ fn parse_false(code: &str, index: usize) -> ParseResult {
 
 fn parse_true(code: &str, index: usize) -> ParseResult {
     let index = consume(code, index, "t")?;
-    let terminates = !next_is_symbolic(code, index);
 
-    if terminates {
+    if next_char_is_break(code, index) {
         Some(Ok(ParsedAndIndex {
             parsed: ParseTree::Atom(Value::True),
             index,
@@ -215,28 +204,39 @@ fn parse_number(code: &str, index: usize) -> ParseResult {
             let back_last_index = back_last_index + 1;
 
             if back_last_index >= front_last_index + 2 {
-                if let Ok(float) = code
-                    .get(index..back_last_index)
-                    .unwrap_or("")
-                    .parse::<FloatType>()
-                {
-                    return Some(Ok(ParsedAndIndex {
-                        parsed: ParseTree::Atom(Value::Float(float)),
-                        index: back_last_index,
-                    }));
+                if next_char_is_break(code, back_last_index) {
+                    if let Ok(float) = code
+                        .get(index..back_last_index)
+                        .unwrap_or("")
+                        .parse::<FloatType>()
+                    {
+                        return Some(Ok(ParsedAndIndex {
+                            parsed: ParseTree::Atom(Value::Float(float)),
+                            index: back_last_index,
+                        }));
+                    }
                 }
+            } else if code.as_bytes().get(back_last_index - 1) == Some(&b'.') {
+                return Some(Err(ParseError {
+                    msg: format!(
+                        "Expected decimal value after '.' at index {}",
+                        back_last_index - 1
+                    ),
+                }));
             }
         }
 
-        if let Ok(int) = code
-            .get(index..front_last_index)
-            .unwrap_or("")
-            .parse::<IntType>()
-        {
-            return Some(Ok(ParsedAndIndex {
-                parsed: ParseTree::Atom(Value::Int(int)),
-                index: front_last_index,
-            }));
+        if next_char_is_break(code, front_last_index) {
+            if let Ok(int) = code
+                .get(index..front_last_index)
+                .unwrap_or("")
+                .parse::<IntType>()
+            {
+                return Some(Ok(ParsedAndIndex {
+                    parsed: ParseTree::Atom(Value::Int(int)),
+                    index: front_last_index,
+                }));
+            }
         }
     }
 
@@ -249,7 +249,7 @@ fn parse_string(code: &str, index: usize) -> ParseResult {
     })?;
 
     if last_index > index {
-        if code.as_bytes()[last_index + 1] == b'"' {
+        if code.as_bytes().get(last_index + 1) == Some(&b'"') {
             Some(Ok(ParsedAndIndex {
                 parsed: ParseTree::Atom(Value::String(
                     code.get(index + 1..last_index + 1).unwrap_or("").to_owned(),
@@ -342,4 +342,12 @@ fn is_symbolic(c: char) -> bool {
     !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| *t == c)
 }
 
-const SPECIAL_TOKENS: [char; 3] = ['(', ')', '\''];
+fn next_char_is_break(code: &str, index: usize) -> bool {
+    code.get(index..)
+        .map(|s| s.chars().next())
+        .flatten()
+        .map(|ch| ch.is_whitespace() || SPECIAL_TOKENS.iter().any(|t| *t == ch))
+        .unwrap_or(true)
+}
+
+const SPECIAL_TOKENS: [char; 4] = ['(', ')', '\'', ';'];
