@@ -1,411 +1,60 @@
 use crate::{
     lisp,
-    model::{FloatType, IntType, List, Symbol, Value},
+    model::{List, Symbol, Value},
 };
 
 use std::fmt::Display;
-
-/// A slightly more convenient data structure for building the parse tree, before
-/// eventually converting it into proper s-expressions.
-#[derive(Debug, Clone)]
-enum ParseTree {
-    Atom { atom: Value, quoted: bool },
-    List { vec: Vec<ParseTree>, quoted: bool },
-}
-
-impl ParseTree {
-    pub fn into_expression(self) -> Value {
-        match self {
-            ParseTree::Atom { atom, quoted } => {
-                if quoted {
-                    lisp! { (quote {atom}) }
-                } else {
-                    atom
-                }
-            }
-            ParseTree::List { vec, quoted } => {
-                let list = Value::List(
-                    vec.into_iter()
-                        .map(|parse_tree| parse_tree.into_expression())
-                        .collect::<List>(),
-                );
-
-                if quoted {
-                    lisp! { (quote {list}) }
-                } else {
-                    list
-                }
-            }
-        }
-    }
-}
-
-/// Tokenize Lisp code
-fn tokenize(code: &str) -> impl Iterator<Item = &str> {
-    let mut skip_to: Option<usize> = None;
-
-    code.char_indices().filter_map(move |(index, ch)| {
-        if skip_to
-            .map(|destination| destination > index)
-            .unwrap_or(false)
-        {
-            return None;
-        } else {
-            skip_to = None;
-        }
-
-        // whitespace
-        if ch.is_whitespace() {
-            return None;
-        }
-
-        // special tokens
-        for special in &SPECIAL_TOKENS {
-            if match_front(&code[index..], special) {
-                skip_to = Some(index + special.len());
-                return Some(*special);
-            }
-        }
-
-        // strings
-        if ch == '"' {
-            if let Some(contents_end_index) = code[index + 1..].find(|c| c == '"') {
-                let string_end_index = index + contents_end_index + 2;
-
-                skip_to = Some(string_end_index);
-                return Some(&code[index..string_end_index]);
-            } else {
-                skip_to = Some(code.len());
-                return None;
-            }
-        }
-
-        // comments
-        if ch == ';' {
-            if let Some(newline_index) = code[index..].find(|c| c == '\n') {
-                skip_to = Some(index + newline_index + 1);
-            } else {
-                skip_to = Some(code.len());
-            }
-            return None;
-        }
-
-        // numbers
-        if ch.is_numeric() || ch == '-' {
-            let front_end = index
-                + match_pred(&code[index..], |c, i| {
-                    c.is_numeric() || (i == 0 && ch == '-')
-                })
-                .unwrap()
-                + 1;
-
-            if ch != '-' || front_end - index > 1 {
-                if front_end < code.len() - 1 && &code[front_end..front_end + 1] == "." {
-                    let back_end = front_end
-                        + 1
-                        + match_pred(&code[front_end + 1..], |c, _| c.is_numeric()).unwrap()
-                        + 1;
-
-                    skip_to = Some(back_end);
-                    return Some(&code[index..back_end]);
-                } else {
-                    skip_to = Some(front_end);
-                    return Some(&code[index..front_end]);
-                }
-            }
-        }
-
-        // symbols
-        if is_symbol_start(ch) {
-            let match_end = match_pred(&code[index..], |c, _| is_symbolic(c));
-
-            if let Some(symbol_last) = match_end {
-                let symbol_end = index + symbol_last + 1;
-
-                skip_to = Some(symbol_end);
-                return Some(&code[index..symbol_end]);
-            }
-        }
-
-        None
-    })
-}
-
-const SPECIAL_TOKENS: [&str; 4] = ["(", ")", "'", "..."];
-
-fn is_symbol_start(c: char) -> bool {
-    !c.is_numeric() && is_symbolic(c)
-}
-
-fn is_symbolic(c: char) -> bool {
-    !c.is_whitespace()
-        && !SPECIAL_TOKENS
-            .iter()
-            .any(|t| t.chars().any(|other| other == c))
-}
-
-fn match_front(code: &str, segment: &str) -> bool {
-    segment.chars().zip(code.chars()).all(|(a, b)| a == b)
-}
-
-fn match_pred<F: Fn(char, usize) -> bool>(code: &str, pred: F) -> Option<usize> {
-    code.char_indices()
-        .take_while(|(i, c)| pred(*c, *i))
-        .last()
-        .map(|(i, _)| i)
-}
-
-#[test]
-fn tokenize_simplest() {
-    let source = "
-  (1 2 3)";
-    let tokens: Vec<&str> = tokenize(source).collect();
-
-    assert_eq!(tokens, vec!["(", "1", "2", "3", ")"]);
-}
-
-// 🦀 Testing, testing!
-#[test]
-fn tokenize_basic_expression() {
-    let source = "
-  (list 
-    (* 1 2)  ;; a comment
-    (/ 6 3 \"foo\"))";
-    let tokens: Vec<&str> = tokenize(source).collect();
-
-    assert_eq!(
-        tokens,
-        vec!["(", "list", "(", "*", "1", "2", ")", "(", "/", "6", "3", "\"foo\"", ")", ")"]
-    );
-}
-
-#[test]
-fn tokenize_complex_expression() {
-    let source = "
-  (begin
-    (define fib-normal
-      (lambda (n)
-        (+ (fib (- n 1)) (fib (- n 2)) )))
-
-    (define fib 
-      (lambda (n)
-        (cond           ;; some comment
-          ((== n 0) 0)
-          ((== n 1) 1)
-          (T (fib-normal n))))) ;;another comment";
-
-    let tokens: Vec<&str> = tokenize(source).collect();
-
-    assert_eq!(
-        tokens,
-        vec![
-            "(",
-            "begin",
-            "(",
-            "define",
-            "fib-normal",
-            "(",
-            "lambda",
-            "(",
-            "n",
-            ")",
-            "(",
-            "+",
-            "(",
-            "fib",
-            "(",
-            "-",
-            "n",
-            "1",
-            ")",
-            ")",
-            "(",
-            "fib",
-            "(",
-            "-",
-            "n",
-            "2",
-            ")",
-            ")",
-            ")",
-            ")",
-            ")",
-            "(",
-            "define",
-            "fib",
-            "(",
-            "lambda",
-            "(",
-            "n",
-            ")",
-            "(",
-            "cond",
-            "(",
-            "(",
-            "==",
-            "n",
-            "0",
-            ")",
-            "0",
-            ")",
-            "(",
-            "(",
-            "==",
-            "n",
-            "1",
-            ")",
-            "1",
-            ")",
-            "(",
-            "T",
-            "(",
-            "fib-normal",
-            "n",
-            ")",
-            ")",
-            ")",
-            ")",
-            ")"
-        ]
-    );
-}
-
-#[test]
-fn tokenize_identifier_with_digits() {
-    let tokens: Vec<&str> = tokenize("(i32)").collect();
-
-    assert_eq!(tokens, vec!["(", "i32", ")"]);
-}
-
-/// Parse tokens (created by `tokenize()`) into a series of s-expressions. There
-/// are more than one when the base string has more than one independent
-/// parenthesized lists at its root.
-fn read<'a>(
-    tokens: impl Iterator<Item = &'a str> + 'a,
-) -> impl Iterator<Item = Result<Value, ParseError>> + 'a {
-    let mut stack: Vec<ParseTree> = vec![];
-    let mut parenths = 0;
-    let mut quote_next = false;
-
-    tokens.filter_map(move |token| {
-        match token {
-            "(" => {
-                parenths += 1;
-
-                stack.push(ParseTree::List {
-                    vec: vec![],
-                    quoted: quote_next,
-                });
-                quote_next = false;
-
-                None
-            }
-            ")" => {
-                parenths -= 1;
-
-                if stack.is_empty() {
-                    Some(Err(ParseError::new("Unexpected ')'")))
-                } else {
-                    let mut finished = stack.pop().unwrap();
-
-                    if parenths == 0 {
-                        stack = vec![];
-                        Some(Ok(finished.into_expression()))
-                    } else {
-                        let destination = stack.last_mut().unwrap();
-
-                        // () is Nil
-                        if let ParseTree::List { vec, quoted } = &finished {
-                            if vec.is_empty() {
-                                finished = ParseTree::Atom {
-                                    atom: Value::NIL,
-                                    quoted: *quoted,
-                                };
-                            }
-                        }
-
-                        if let ParseTree::List { vec, quoted: _ } = destination {
-                            vec.push(finished);
-                        }
-
-                        None
-                    }
-                }
-            }
-            "'" => {
-                quote_next = true;
-
-                None
-            }
-            _ => {
-                // atom
-                let expr = ParseTree::Atom {
-                    atom: read_atom(token),
-                    quoted: quote_next,
-                };
-                quote_next = false;
-
-                if let Some(last) = stack.last_mut() {
-                    if let ParseTree::List { vec, quoted: _ } = last {
-                        vec.push(expr);
-                    }
-                    None
-                } else {
-                    Some(Ok(expr.into_expression()))
-                }
-            }
-        }
-    })
-}
-
-fn read_atom(token: &str) -> Value {
-    let token_lowercase = token.to_lowercase();
-
-    if token_lowercase == "t" {
-        return Value::True;
-    }
-
-    if token_lowercase == "f" {
-        return Value::False;
-    }
-
-    if token_lowercase == "nil" {
-        return Value::NIL;
-    }
-
-    if let Ok(as_int) = token.parse::<IntType>() {
-        return Value::Int(as_int);
-    }
-
-    if let Ok(as_float) = token.parse::<FloatType>() {
-        return Value::Float(as_float);
-    }
-
-    if token.chars().next().map_or(false, |c| c == '"') {
-        // TODO: Implement escaped characters
-        return Value::String(String::from(&token[1..token.chars().count() - 1]));
-    }
-
-    Value::Symbol(Symbol(String::from(token)))
-}
 
 /// Parse a string of Lisp code into a series of s-expressions. There
 /// are more than one expressions when the base string has more than one
 /// independent parenthesized lists at its root.
 pub fn parse(code: &str) -> impl Iterator<Item = Result<Value, ParseError>> + '_ {
-    read(tokenize(code))
+    let mut index = 0;
+    index = consume_whitespace_and_comments(code, index);
+
+    std::iter::from_fn(move || {
+        if let Some(res) = parse_expression(code, index) {
+            if let Ok(res) = res {
+                index = res.index;
+                index = consume_whitespace_and_comments(code, index);
+
+                Some(Ok(res.parsed.into_value()))
+            } else {
+                Some(Err(res.unwrap_err()))
+            }
+        } else {
+            None // TODO: Err if we don't parse the whole input?
+        }
+    })
 }
 
-#[derive(Debug, PartialEq, Eq)]
+/// A slightly more convenient data structure for building the parse tree, before
+/// eventually converting it into proper s-expressions.
+#[derive(Debug, Clone)]
+enum ParseTree {
+    Atom(Value),
+    List(Vec<ParseTree>),
+    Quoted(Box<ParseTree>),
+}
+
+impl ParseTree {
+    pub fn into_value(self) -> Value {
+        match self {
+            ParseTree::Atom(value) => value,
+            ParseTree::List(vec) => Value::List(
+                vec.into_iter()
+                    .map(|parse_tree| parse_tree.into_value())
+                    .collect::<List>(),
+            ),
+            ParseTree::Quoted(inner) => lisp! { (quote {inner.into_value()}) },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
     pub msg: String,
     // pub line: i32,
-}
-
-impl ParseError {
-    fn new(s: impl Into<String>) -> ParseError {
-        ParseError { msg: s.into() }
-    }
 }
 
 impl Display for ParseError {
@@ -413,3 +62,273 @@ impl Display for ParseError {
         return write!(formatter, "Parse error: {}", self.msg);
     }
 }
+
+#[derive(Clone, Debug)]
+struct ParsedAndIndex {
+    pub parsed: ParseTree,
+    pub index: usize,
+}
+
+type ParseResult = Option<Result<ParsedAndIndex, ParseError>>;
+type ConsumeResult = Option<usize>;
+
+fn parse_expression(code: &str, index: usize) -> ParseResult {
+    for func in [parse_list, parse_atom] {
+        let res = func(code, index);
+
+        if res.is_some() {
+            return res;
+        }
+    }
+
+    None
+}
+
+fn parse_list(code: &str, index: usize) -> ParseResult {
+    let mut index = consume(code, index, "(")?;
+    let mut members = vec![];
+
+    index = consume_whitespace_and_comments(code, index);
+
+    while let Some(res) = parse_expression(code, index) {
+        if let Ok(res) = res {
+            index = res.index;
+            members.push(res.parsed);
+            index = consume_whitespace_and_comments(code, index);
+        } else {
+            return Some(res);
+        }
+    }
+
+    if let Some(index) = consume(code, index, ")") {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::List(members),
+            index,
+        }))
+    } else {
+        Some(Err(ParseError {
+            msg: format!("Unclosed list at index {}", index),
+        }))
+    }
+}
+
+fn parse_atom(code: &str, index: usize) -> ParseResult {
+    for func in [
+        parse_quoted,
+        parse_nil,
+        parse_false,
+        parse_true,
+        parse_number,
+        parse_string,
+        parse_symbol,
+    ] {
+        let res = func(code, index);
+
+        if res.is_some() {
+            return res;
+        }
+    }
+
+    None
+}
+
+fn parse_quoted(code: &str, index: usize) -> ParseResult {
+    let index = consume(code, index, "'")?;
+    let res = parse_expression(code, index)?;
+
+    if let Ok(ParsedAndIndex { parsed, index }) = res {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::Quoted(Box::new(parsed)),
+            index,
+        }))
+    } else {
+        Some(res)
+    }
+}
+
+fn next_is_symbolic(code: &str, index: usize) -> bool {
+    code.get(index..)
+        .map(|s| s.chars().next())
+        .flatten()
+        .map(is_symbolic)
+        .unwrap_or(false)
+}
+
+fn parse_nil(code: &str, index: usize) -> ParseResult {
+    let index = consume(code, index, "nil")?;
+    let terminates = !next_is_symbolic(code, index);
+
+    if terminates {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::Atom(Value::NIL),
+            index,
+        }))
+    } else {
+        None
+    }
+}
+
+fn parse_false(code: &str, index: usize) -> ParseResult {
+    let index = consume(code, index, "f")?;
+    let terminates = !next_is_symbolic(code, index);
+
+    if terminates {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::Atom(Value::False),
+            index,
+        }))
+    } else {
+        None
+    }
+}
+
+fn parse_true(code: &str, index: usize) -> ParseResult {
+    let index = consume(code, index, "t")?;
+    let terminates = !next_is_symbolic(code, index);
+
+    if terminates {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::Atom(Value::True),
+            index,
+        }))
+    } else {
+        None
+    }
+}
+
+fn parse_number(code: &str, index: usize) -> ParseResult {
+    let (front_last_index, front_last_char) = consume_while(code, index, |(index, ch)| {
+        (index == 0 && ch == '-') || ch.is_numeric()
+    })?;
+
+    if front_last_char.is_numeric() {
+        let front_last_index = front_last_index + 1;
+
+        let back_end = consume_while(code, front_last_index, |(index, ch)| {
+            (index == 0 && ch == '.') || ch.is_numeric()
+        });
+
+        if let Some((back_last_index, _)) = back_end {
+            let back_last_index = back_last_index + 1;
+
+            if back_last_index >= front_last_index + 2 {
+                if let Ok(float) = code.get(index..back_last_index).unwrap_or("").parse() {
+                    return Some(Ok(ParsedAndIndex {
+                        parsed: ParseTree::Atom(Value::Float(float)),
+                        index: back_last_index,
+                    }));
+                }
+            }
+        }
+
+        if let Ok(int) = code.get(index..front_last_index).unwrap_or("").parse() {
+            return Some(Ok(ParsedAndIndex {
+                parsed: ParseTree::Atom(Value::Int(int)),
+                index: front_last_index,
+            }));
+        }
+    }
+
+    None
+}
+
+fn parse_string(code: &str, index: usize) -> ParseResult {
+    let (last_index, _) = consume_while(code, index, |(index, ch)| {
+        (index == 0 && ch == '"') || (index > 0 && ch != '"')
+    })?;
+
+    if last_index > index {
+        if code.as_bytes()[last_index + 1] == b'"' {
+            Some(Ok(ParsedAndIndex {
+                parsed: ParseTree::Atom(Value::String(
+                    code.get(index + 1..last_index + 1).unwrap_or("").to_owned(),
+                )),
+                index: last_index + 2,
+            }))
+        } else {
+            Some(Err(ParseError {
+                msg: format!("Unclosed string at index {}", last_index),
+            }))
+        }
+    } else {
+        None
+    }
+}
+
+fn parse_symbol(code: &str, index: usize) -> ParseResult {
+    let (last_index, _) = consume_while(code, index, |(index, ch)| {
+        (index == 0 && is_symbol_start(ch)) || (index > 0 && is_symbolic(ch))
+    })?;
+    let last_index = last_index + 1;
+
+    if last_index > index {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::Atom(Value::Symbol(Symbol(
+                code.get(index..last_index).unwrap_or("").to_owned(),
+            ))),
+            index: last_index,
+        }))
+    } else {
+        None
+    }
+}
+
+fn consume(code: &str, index: usize, s: &str) -> ConsumeResult {
+    let slice = code.get(index..).unwrap_or("");
+
+    if slice.len() >= s.len()
+        && slice
+            .chars()
+            .zip(s.chars())
+            .all(|(a, b)| a.to_ascii_lowercase() == b.to_ascii_lowercase())
+    {
+        return Some(index + s.len());
+    } else {
+        return None;
+    }
+}
+
+fn consume_whitespace_and_comments(code: &str, index: usize) -> usize {
+    let mut semicolons = 0;
+
+    consume_while(code, index, move |(_, ch)| {
+        if semicolons < 2 && ch == ';' {
+            semicolons += 1;
+        }
+
+        if ch.is_whitespace() || ch == ';' || semicolons >= 2 {
+            if ch == '\n' {
+                semicolons = 0;
+            }
+
+            true
+        } else {
+            false
+        }
+    })
+    .map(|(index, _)| index + 1)
+    .unwrap_or(index)
+}
+
+fn consume_while<F: FnMut((usize, char)) -> bool>(
+    code: &str,
+    index: usize,
+    mut pred: F,
+) -> Option<(usize, char)> {
+    code.get(index..)
+        .unwrap_or("")
+        .char_indices()
+        .take_while(|(i, c)| pred((*i, *c)))
+        .last()
+        .map(|(last_index, ch)| (last_index + index, ch))
+}
+
+fn is_symbol_start(c: char) -> bool {
+    !c.is_numeric() && is_symbolic(c)
+}
+
+fn is_symbolic(c: char) -> bool {
+    !c.is_whitespace() && !SPECIAL_TOKENS.iter().any(|t| *t == c)
+}
+
+const SPECIAL_TOKENS: [char; 3] = ['(', ')', '\''];
