@@ -1,5 +1,5 @@
 ![Rust](https://github.com/brundonsmith/rust-lisp/workflows/Rust/badge.svg)
-![docs.rs](https://img.shields.io/docsrs/rust_lisp/latest)
+[![docs.rs](https://img.shields.io/docsrs/rust_lisp/latest)](https://docs.rs/rust_lisp/latest/rust_lisp/)
 
 # What is this?
 
