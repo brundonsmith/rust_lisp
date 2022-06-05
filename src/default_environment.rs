@@ -1,11 +1,13 @@
 use crate::{
     interpreter::eval,
     lisp,
-    model::{Env, List, RuntimeError, Symbol, Value},
-    utils::{require_int_parameter, require_list_parameter, require_parameter},
+    model::{Env, FloatType, List, RuntimeError, Symbol, Value},
+    utils::{
+        require_hash_parameter, require_int_parameter, require_list_parameter, require_parameter,
+    },
 };
 use cfg_if::cfg_if;
-use std::{collections::HashMap, convert::TryInto};
+use std::{cell::RefCell, collections::HashMap, convert::TryInto, rc::Rc};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
@@ -247,6 +249,57 @@ pub fn default_env() -> Env {
             Ok(Value::List(
                 (start..end).map(Value::from_int).collect::<List>(),
             ))
+        }),
+    );
+
+    entries.insert(
+        String::from("hash"),
+        Value::NativeFunc(|_env, args| {
+            let chunks = args.chunks(2);
+
+            let mut hash = HashMap::new();
+
+            for pair in chunks {
+                let key = pair.get(0).unwrap();
+                let value = pair.get(1);
+
+                if let Some(value) = value {
+                    hash.insert(key.clone(), value.clone());
+                } else {
+                    return Err(RuntimeError {
+                        msg: format!("Must pass an even number of arguments to 'hash', because they're used as key/value pairs; found extra argument {}", key)
+                    });
+                }
+            }
+
+            Ok(Value::HashMap(Rc::new(RefCell::new(hash))))
+        }),
+    );
+
+    entries.insert(
+        String::from("hash-get"),
+        Value::NativeFunc(|_env, args| {
+            let hash = require_hash_parameter("hash-get", args, 0)?;
+            let key = require_parameter("hash-get", args, 1)?;
+
+            Ok(hash
+                .borrow()
+                .get(key)
+                .map(|v| v.clone())
+                .unwrap_or(Value::NIL))
+        }),
+    );
+
+    entries.insert(
+        String::from("hash-set"),
+        Value::NativeFunc(|_env, args| {
+            let hash = require_hash_parameter("hash-set", args, 0)?;
+            let key = require_parameter("hash-set", args, 1)?;
+            let value = require_parameter("hash-set", args, 2)?;
+
+            hash.borrow_mut().insert(key.clone(), value.clone());
+
+            Ok(Value::HashMap(hash.clone()))
         }),
     );
 

@@ -1,3 +1,5 @@
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
 use crate::model::{FloatType, IntType, List, RuntimeError, Value};
 
 // 🦀 Poor thing, you went unused too?
@@ -111,6 +113,30 @@ pub fn require_list_parameter<'a>(
             _ => Err(RuntimeError {
                 msg: format!(
                     "Function \"{}\" requires argument {} to be a list; got {}",
+                    func_name,
+                    index,
+                    val.type_name()
+                ),
+            }),
+        },
+        Err(err) => Err(err),
+    }
+}
+
+/// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`,
+/// assumed to be a `Value::HashMap()`, and return a reference to its inner
+/// HashMap. Err if any part of this fails.
+pub fn require_hash_parameter<'a>(
+    func_name: &str,
+    args: &'a [Value],
+    index: usize,
+) -> Result<&'a Rc<RefCell<HashMap<Value, Value>>>, RuntimeError> {
+    match require_parameter(func_name, args, index) {
+        Ok(val) => match val {
+            Value::HashMap(hash) => Ok(hash),
+            _ => Err(RuntimeError {
+                msg: format!(
+                    "Function \"{}\" requires argument {} to be a hash map; got {}",
                     func_name,
                     index,
                     val.type_name()

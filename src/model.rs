@@ -1,3 +1,4 @@
+use crate::lisp;
 use cfg_if::cfg_if;
 use std::rc::Rc;
 use std::{cell::RefCell, cmp::Ordering};
@@ -46,6 +47,7 @@ pub enum Value {
     String(String),
     Symbol(Symbol),
     List(List),
+    HashMap(Rc<RefCell<HashMap<Value, Value>>>),
     NativeFunc(NativeFunc),
     Lambda(Lambda),
     TailCall { func: Rc<Value>, args: Vec<Value> },
@@ -55,7 +57,7 @@ pub enum Value {
  * A String [newtype](https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html)
  * representing a lisp symbol (identifier)
  */
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol(pub String);
 
 impl Value {
@@ -70,6 +72,7 @@ impl Value {
             Value::String(_) => "string",
             Value::List(List::NIL) => "nil",
             Value::List(_) => "list",
+            Value::HashMap(_) => "hash map",
             Value::Int(_) => "integer",
             Value::Float(_) => "float",
             Value::Symbol(_) => "symbol",
@@ -161,6 +164,19 @@ impl Display for Value {
             }
             Value::String(n) => write!(formatter, "\"{}\"", n),
             Value::List(n) => write!(formatter, "{}", n),
+            Value::HashMap(n) => {
+                let borrowed = n.borrow();
+                let entries = std::iter::once(lisp! { hash }).chain(
+                    borrowed
+                        .iter()
+                        .map(|(key, value)| [key.clone(), value.clone()].into_iter())
+                        .flatten(),
+                );
+
+                let list = Value::List(entries.collect());
+
+                write!(formatter, "{}", list)
+            }
             Value::Int(n) => write!(formatter, "{}", n),
             Value::Float(n) => write!(formatter, "{}", n),
             Value::Symbol(Symbol(n)) => write!(formatter, "{}", n),
@@ -181,6 +197,7 @@ impl Debug for Value {
             Value::Lambda(n) => write!(formatter, "Value::Lambda({:?})", n),
             Value::String(n) => write!(formatter, "Value::String({:?})", n),
             Value::List(n) => write!(formatter, "Value::List({:?})", n),
+            Value::HashMap(n) => write!(formatter, "Value::HashMap({:?})", n),
             Value::Int(n) => write!(formatter, "Value::Int({:?})", n),
             Value::Float(n) => write!(formatter, "Value::Float({:?})", n),
             Value::Symbol(Symbol(n)) => write!(formatter, "Value::Symbol({:?})", n),
@@ -211,12 +228,16 @@ impl PartialEq for Value {
                 Value::List(o) => n == o,
                 _ => false,
             },
+            Value::HashMap(n) => match other {
+                Value::HashMap(o) => n == o,
+                _ => false,
+            },
             Value::Int(n) => match other {
                 Value::Int(o) => n == o,
                 _ => false,
             },
             Value::Float(n) => match other {
-                Value::Float(o) => n == o,
+                Value::Float(o) => n.to_bits() == o.to_bits(),
                 _ => false,
             },
             Value::Symbol(Symbol(n)) => match other {
@@ -317,6 +338,7 @@ impl PartialOrd for Value {
             Value::NativeFunc(_) => None,
             Value::Lambda(_) => None,
             Value::List(_) => None,
+            Value::HashMap(_) => None,
             Value::TailCall { func: _, args: _ } => None,
         }
     }
@@ -327,6 +349,28 @@ impl Ord for Value {
         match self.partial_cmp(other) {
             Some(ordering) => ordering,
             None => format!("{:?}", self).cmp(&format!("{:?}", other)),
+        }
+    }
+}
+
+impl std::hash::Hash for Value {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // core::mem::discriminant(self).hash(state);
+        match self {
+            Value::False => false.hash(state),
+            Value::True => true.hash(state),
+            Value::Int(x) => x.hash(state),
+            Value::Float(x) => x.to_bits().hash(state),
+            Value::String(x) => x.hash(state),
+            Value::Symbol(x) => x.hash(state),
+            Value::List(x) => x.hash(state),
+            Value::HashMap(x) => x.as_ptr().hash(state),
+            Value::NativeFunc(x) => std::ptr::hash(x, state),
+            Value::Lambda(x) => x.hash(state),
+            Value::TailCall { func, args } => {
+                func.hash(state);
+                args.hash(state);
+            }
         }
     }
 }
@@ -380,6 +424,12 @@ mod list {
         }
     }
 
+    impl<'a> List {
+        pub fn into_iter(list: &'a List) -> ConsIterator {
+            ConsIterator(list.head.clone())
+        }
+    }
+
     /// A `ConsCell` is effectively a linked-list node, where the value in each node
     /// is a lisp `Value`. To be used as a true "list", the ConsCell must be wrapped
     /// in Value::List().
@@ -387,6 +437,13 @@ mod list {
     struct ConsCell {
         pub car: Value,
         pub cdr: Option<Rc<RefCell<ConsCell>>>,
+    }
+
+    impl std::hash::Hash for ConsCell {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.car.hash(state);
+            self.cdr.as_ref().map(|rc| rc.as_ptr()).hash(state);
+        }
     }
 
     impl Display for List {
@@ -408,9 +465,9 @@ mod list {
         }
     }
 
-    impl<'a> List {
-        pub fn into_iter(list: &'a List) -> ConsIterator {
-            ConsIterator(list.head.clone())
+    impl std::hash::Hash for List {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.head.as_ref().map(|rc| rc.as_ptr()).hash(state);
         }
     }
 
@@ -498,6 +555,14 @@ impl PartialEq for Lambda {
         self.closure.as_ptr() == other.closure.as_ptr()
             && self.argnames == other.argnames
             && self.body == other.body
+    }
+}
+
+impl std::hash::Hash for Lambda {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.closure.as_ptr().hash(state);
+        self.argnames.hash(state);
+        self.body.hash(state);
     }
 }
 
