@@ -309,60 +309,59 @@ pub fn default_env() -> Env {
             let mut total = Value::NIL;
 
             for arg in args {
-                if total == Value::NIL {
-                    total = arg.clone();
-                } else {
-                    total = match arg {
-                        Value::Int(x) => {
-                            match total {
-                                Value::Int(t) => Value::Int(t + x.clone()),
-                                Value::Float(t) => {
-                                    cfg_if! {
-                                        if #[cfg(feature = "bigint")] {
-                                            Value::Float(t + x.to_i128().unwrap() as FloatType)
-                                        } else {
-                                            Value::Float(t + *x as FloatType)
-                                        }
+                total = match arg {
+                    Value::Int(x) => {
+                        match total {
+                            Value::List(List::NIL) => arg.clone(),
+                            Value::Int(t) => Value::Int(t + x.clone()),
+                            Value::Float(t) => {
+                                cfg_if! {
+                                    if #[cfg(feature = "bigint")] {
+                                        Value::Float(t + x.to_i128().unwrap() as FloatType)
+                                    } else {
+                                        Value::Float(t + *x as FloatType)
                                     }
-                                },
-                                Value::String(t) => Value::String(t + x.to_string().as_str()),
-                                _ => unreachable!("Will only ever assign int/float/string to `total`")
-                            }
-                        },
-                        Value::Float(x) => {
-                            match total {
-                                Value::Int(t) => {
-                                    cfg_if! {
-                                        if #[cfg(feature = "bigint")] {
-                                            Value::Float(t.to_i128().unwrap() as FloatType + *x)
-                                        } else {
-                                            Value::Float(t as FloatType + *x)
-                                        }
-                                    }
-                                },
-                                Value::Float(t) => Value::Float(t + *x),
-                                Value::String(t) => Value::String(t + x.to_string().as_str()),
-                                _ => unreachable!("Will only ever assign int/float/string to `total`")
-                            }
-                        },
-                        Value::String(x) => {
-                            match total {
-                                Value::Int(t) => Value::String(format!("{}{}", t, x)),
-                                Value::Float(t) => Value::String(format!("{}{}", t, x)),
-                                Value::String(t) => Value::String(t + x),
-                                _ => unreachable!("Will only ever assign int/float/string to `total`")
-                            }
-                        },
-                        _ => {
-                            return Err(RuntimeError {
-                                msg: format!(
-                                    "Function \"+\" requires arguments to be numbers or strings; found {}",
-                                    arg
-                                ),
-                            });
+                                }
+                            },
+                            Value::String(t) => Value::String(t + x.to_string().as_str()),
+                            _ => unreachable!("Will only ever assign int/float/string to `total`")
                         }
-                    };
-                }
+                    },
+                    Value::Float(x) => {
+                        match total {
+                            Value::List(List::NIL) => arg.clone(),
+                            Value::Int(t) => {
+                                cfg_if! {
+                                    if #[cfg(feature = "bigint")] {
+                                        Value::Float(t.to_i128().unwrap() as FloatType + *x)
+                                    } else {
+                                        Value::Float(t as FloatType + *x)
+                                    }
+                                }
+                            },
+                            Value::Float(t) => Value::Float(t + *x),
+                            Value::String(t) => Value::String(t + x.to_string().as_str()),
+                            _ => unreachable!("Will only ever assign int/float/string to `total`")
+                        }
+                    },
+                    Value::String(x) => {
+                        match total {
+                            Value::List(List::NIL) => arg.clone(),
+                            Value::Int(t) => Value::String(format!("{}{}", t, x)),
+                            Value::Float(t) => Value::String(format!("{}{}", t, x)),
+                            Value::String(t) => Value::String(t + x),
+                            _ => unreachable!("Will only ever assign int/float/string to `total`")
+                        }
+                    },
+                    _ => {
+                        return Err(RuntimeError {
+                            msg: format!(
+                                "Function \"+\" requires arguments to be numbers or strings; found {}",
+                                arg
+                            ),
+                        });
+                    }
+                };
             }
 
             Ok(total)
