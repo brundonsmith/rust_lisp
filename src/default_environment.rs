@@ -253,24 +253,50 @@ pub fn default_env() -> Env {
     entries.insert(
         String::from("+"),
         Value::NativeFunc(|_env, args| {
-            let a = require_parameter("+", args, 0)?;
-            let b = require_parameter("+", args, 1)?;
+            let mut total = Value::NIL;
 
-            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
-                return Ok(Value::Int(a + b));
+            for arg in args {
+                if total == Value::NIL {
+                    total = arg.clone();
+                } else {
+                    total = match arg {
+                        Value::Int(x) => {
+                            match total {
+                                Value::Int(t) => Value::Int(t + x.clone()),
+                                Value::Float(t) => Value::Float(t + x.to_i128().unwrap() as FloatType),
+                                Value::String(t) => Value::String(t + x.to_string().as_str()),
+                                _ => unreachable!("Will only ever assign int/float/string to `total`")
+                            }
+                        },
+                        Value::Float(x) => {
+                            match total {
+                                Value::Int(t) => Value::Float(t.to_i128().unwrap() as FloatType + *x),
+                                Value::Float(t) => Value::Float(t + *x),
+                                Value::String(t) => Value::String(t + x.to_string().as_str()),
+                                _ => unreachable!("Will only ever assign int/float/string to `total`")
+                            }
+                        },
+                        Value::String(x) => {
+                            match total {
+                                Value::Int(t) => Value::String(format!("{}{}", t, x)),
+                                Value::Float(t) => Value::String(format!("{}{}", t, x)),
+                                Value::String(t) => Value::String(t + x),
+                                _ => unreachable!("Will only ever assign int/float/string to `total`")
+                            }
+                        },
+                        _ => {
+                            return Err(RuntimeError {
+                                msg: format!(
+                                    "Function \"+\" requires arguments to be numbers or strings; found {}",
+                                    arg
+                                ),
+                            });
+                        }
+                    };
+                }
             }
 
-            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
-                return Ok(Value::Float(a + b));
-            }
-
-            if let (Some(a), Some(b)) = (a.as_string(), b.as_string()) {
-                return Ok(Value::String(String::from(a) + b));
-            }
-
-            Err(RuntimeError {
-                msg: String::from("Function \"+\" requires arguments to be numbers or strings"),
-            })
+            Ok(total)
         }),
     );
 
