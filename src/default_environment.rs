@@ -33,18 +33,18 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("is-null"),
+        String::from("is_null"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("is-null", args, 0)?;
+            let val = require_parameter("is_null", args, 0)?;
 
             Ok(Value::from_truth(*val == Value::NIL))
         }),
     );
 
     entries.insert(
-        String::from("is-number"),
+        String::from("is_number"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("is-number", args, 0)?;
+            let val = require_parameter("is_number", args, 0)?;
 
             Ok(match val {
                 Value::Int(_) => Value::True,
@@ -55,9 +55,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("is-symbol"),
+        String::from("is_symbol"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("is-symbol", args, 0)?;
+            let val = require_parameter("is_symbol", args, 0)?;
 
             Ok(match val {
                 Value::Symbol(_) => Value::True,
@@ -67,9 +67,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("is-boolean"),
+        String::from("is_boolean"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("is-boolean", args, 0)?;
+            let val = require_parameter("is_boolean", args, 0)?;
 
             Ok(match val {
                 Value::True => Value::True,
@@ -80,9 +80,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("is-procedure"),
+        String::from("is_procedure"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("is-procedure", args, 0)?;
+            let val = require_parameter("is_procedure", args, 0)?;
 
             Ok(match val {
                 Value::Lambda(_) => Value::True,
@@ -93,9 +93,9 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("is-pair"),
+        String::from("is_pair"),
         Value::NativeFunc(|_env, args| {
-            let val = require_parameter("is-pair", args, 0)?;
+            let val = require_parameter("is_pair", args, 0)?;
 
             Ok(match val {
                 Value::List(_) => Value::True,
@@ -277,10 +277,10 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("hash-get"),
+        String::from("hash_get"),
         Value::NativeFunc(|_env, args| {
-            let hash = require_hash_parameter("hash-get", args, 0)?;
-            let key = require_parameter("hash-get", args, 1)?;
+            let hash = require_hash_parameter("hash_get", args, 0)?;
+            let key = require_parameter("hash_get", args, 1)?;
 
             Ok(hash
                 .borrow()
@@ -291,11 +291,11 @@ pub fn default_env() -> Env {
     );
 
     entries.insert(
-        String::from("hash-set"),
+        String::from("hash_set"),
         Value::NativeFunc(|_env, args| {
-            let hash = require_hash_parameter("hash-set", args, 0)?;
-            let key = require_parameter("hash-set", args, 1)?;
-            let value = require_parameter("hash-set", args, 2)?;
+            let hash = require_hash_parameter("hash_set", args, 0)?;
+            let key = require_parameter("hash_set", args, 1)?;
+            let value = require_parameter("hash_set", args, 2)?;
 
             hash.borrow_mut().insert(key.clone(), value.clone());
 

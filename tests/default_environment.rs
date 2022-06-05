@@ -101,9 +101,22 @@ fn filter_list_of_lists() {
                 (list 0 1 2 3)))
     });
 
-    println!("{}", result);
-
     assert_eq!(result, lisp! {((0 1 2) (0 1 2 3))});
+}
+
+#[test]
+fn hash_map() {
+    let result = eval_ast(lisp! {
+        (begin
+            (define my_hash (hash "one" 1 "two" 2 "three" 3))
+            (hash_set my_hash "four" 4)
+            (+
+                (hash_get my_hash "one")
+                " "
+                (hash_get my_hash "four")))
+    });
+
+    assert_eq!(result, lisp! { "1 4" });
 }
 
 #[cfg(test)]

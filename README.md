@@ -146,15 +146,22 @@ fn parse_basic_expression() {
 }
 ```
 
+NOTE: When parsing lisp code from a string, dashes (`-`) are allowed to be used
+in identifiers. _However_, due to the limitations of declarative Rust macros,
+these cannot be handled correctly by `lisp! {}`. So it's recommended that you
+use underscores in your identifiers instead, which the macro will be able to
+handle correctly. The built-in functions follow this convention.
+
 # Included functionality
 
 Special forms: `define`, `set`, `defun`, `lambda`, `quote`, `let`, `begin`,
 `cond`, `if`, `and`, `or`
 
-Functions (in `default_env()`): `print`, `is-null`, `is-number`, `is-symbol`,
-`is-boolean`, `is-procedure`, `is-pair`, `car`, `cdr`, `cons`, `list`, `nth`,
-`sort`, `reverse`, `map`, `filter`, `length`, `range`, `+`, `-`, `*`, `/`,
-`truncate`, `not`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `apply`, `eval`
+Functions (in `default_env()`): `print`, `is_null`, `is_number`, `is_symbol`,
+`is_boolean`, `is_procedure`, `is_pair`, `car`, `cdr`, `cons`, `list`, `nth`,
+`sort`, `reverse`, `map`, `filter`, `length`, `range`, `hash`, `hash_get`,
+`hash_set`, `+`, `-`, `*`, `/`, `truncate`, `not`, `==`, `!=`, `<`, `<=`, `>`,
+`>=`, `apply`, `eval`
 
 Other features:
 

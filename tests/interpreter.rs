@@ -256,23 +256,6 @@ fn lambda_err() {
     );
 }
 
-#[test]
-fn hash_map() {
-    let result = eval_str(
-        "
-        (begin
-            (define my-hash (hash \"one\" 1 \"two\" 2 \"three\" 3))
-            (hash-set my-hash \"four\" 4)
-            (+
-                (hash-get my-hash \"one\")
-                \" \"
-                (hash-get my-hash \"four\")))
-    ",
-    );
-
-    assert_eq!(result, lisp! { "1 4" });
-}
-
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();
