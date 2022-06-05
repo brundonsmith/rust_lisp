@@ -316,14 +316,30 @@ pub fn default_env() -> Env {
                         Value::Int(x) => {
                             match total {
                                 Value::Int(t) => Value::Int(t + x.clone()),
-                                Value::Float(t) => Value::Float(t + x.to_i128().unwrap() as FloatType),
+                                Value::Float(t) => {
+                                    cfg_if! {
+                                        if #[cfg(feature = "bigint")] {
+                                            Value::Float(t + x.to_i128().unwrap() as FloatType)
+                                        } else {
+                                            Value::Float(t + *x as FloatType)
+                                        }
+                                    }
+                                },
                                 Value::String(t) => Value::String(t + x.to_string().as_str()),
                                 _ => unreachable!("Will only ever assign int/float/string to `total`")
                             }
                         },
                         Value::Float(x) => {
                             match total {
-                                Value::Int(t) => Value::Float(t.to_i128().unwrap() as FloatType + *x),
+                                Value::Int(t) => {
+                                    cfg_if! {
+                                        if #[cfg(feature = "bigint")] {
+                                            Value::Float(t.to_i128().unwrap() as FloatType + *x)
+                                        } else {
+                                            Value::Float(t as FloatType + *x)
+                                        }
+                                    }
+                                },
                                 Value::Float(t) => Value::Float(t + *x),
                                 Value::String(t) => Value::String(t + x.to_string().as_str()),
                                 _ => unreachable!("Will only ever assign int/float/string to `total`")
