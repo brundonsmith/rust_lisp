@@ -42,7 +42,7 @@ pub fn require_int_parameter(
                 msg: format!(
                     "Function \"{}\" requires argument {} to be an integer; got {}",
                     func_name,
-                    index,
+                    index + 1,
                     val.type_name()
                 ),
             }),
@@ -66,7 +66,7 @@ pub fn require_float_parameter(
                 msg: format!(
                     "Function \"{}\" requires argument {} to be a float; got {}",
                     func_name,
-                    index,
+                    index + 1,
                     val.type_name()
                 ),
             }),
@@ -90,7 +90,7 @@ pub fn require_string_parameter<'a>(
                 msg: format!(
                     "Function \"{}\" requires argument {} to be a string; got {}",
                     func_name,
-                    index,
+                    index + 1,
                     val.type_name()
                 ),
             }),
@@ -114,7 +114,7 @@ pub fn require_list_parameter<'a>(
                 msg: format!(
                     "Function \"{}\" requires argument {} to be a list; got {}",
                     func_name,
-                    index,
+                    index + 1,
                     val.type_name()
                 ),
             }),
@@ -138,7 +138,7 @@ pub fn require_hash_parameter<'a>(
                 msg: format!(
                     "Function \"{}\" requires argument {} to be a hash map; got {}",
                     func_name,
-                    index,
+                    index + 1,
                     val.type_name()
                 ),
             }),
