@@ -568,8 +568,11 @@ cfg_if! {
                 if current == end {
                     None
                 } else {
+                    let res = Some(current.clone());
+
                     current += 1;
-                    Some(current.clone())
+
+                    res
                 }
             })
         }
