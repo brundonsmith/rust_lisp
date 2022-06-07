@@ -79,13 +79,13 @@ fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value,RuntimeErro
 
 ...
 
-  env.borrow_mut().entries.insert(
-    String::from("sayhello"),
-    Value::NativeFunc(my_func));
+env.borrow_mut().define(
+  String::from("sayhello"),
+  Value::NativeFunc(my_func));
 ```
 
 ```rust
-entries.insert(
+env.borrow_mut().define(
   String::from("sayhello"),
   Value::NativeFunc(
     |env, args| {
