@@ -2,7 +2,7 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{List, Value},
+    model::{IntType, List, Value},
     parser::parse,
     prelude::RuntimeError,
 };
@@ -10,7 +10,10 @@ use std::{cell::RefCell, rc::Rc};
 
 #[test]
 fn one() {
-    assert_eq!(eval_str("(car (list 1 2 3))"), Ok(Value::from_int(1)));
+    assert_eq!(
+        eval_str("(car (list 1 2 3))"),
+        Ok(Value::from(Into::<IntType>::into(1)))
+    );
 }
 
 #[test]
@@ -49,7 +52,7 @@ fn six() {
     assert_eq!(
         eval_str("(cons (list 1 2 3) 4)"),
         Err(RuntimeError {
-            msg: "Function \"cons\" requires argument 2 to be a list; got integer".to_owned()
+            msg: "Function \"cons\" requires argument 2 to be a list; got 4".to_owned()
         })
     );
 }
@@ -59,6 +62,7 @@ fn seven() {
     assert_eq!(eval_str("(cons 4 (list 1 2 3))"), Ok(lisp! { (4 1 2 3) }));
 }
 
+#[cfg(test)]
 fn eval_str(source: &str) -> Result<Value, RuntimeError> {
     let ast = parse(source).next().unwrap().unwrap();
     let env = Rc::new(RefCell::new(default_env()));

@@ -1,5 +1,5 @@
 use crate::model::{Env, Lambda, List, RuntimeError, Symbol, Value};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 /// Evaluate a single Lisp expression in the context of a given environment.
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value, RuntimeError> {
@@ -70,8 +70,8 @@ fn eval_inner(
                 // special forms
                 Value::Symbol(Symbol(keyword)) if keyword == "define" || keyword == "set" => {
                     let cdr = list.cdr();
-                    let symbol = cdr.car()?;
-                    let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
+                    let symbol = &cdr.car()?;
+                    let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
                         msg: format!(
                             "Symbol required for definition; received \"{}\", which is a {}",
                             symbol,
@@ -82,9 +82,9 @@ fn eval_inner(
                     let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
                     if keyword == "define" {
-                        env.borrow_mut().define(symbol, value.clone());
+                        env.borrow_mut().define(symbol.clone(), value.clone());
                     } else {
-                        env.borrow_mut().set(symbol, value.clone())?;
+                        env.borrow_mut().set(symbol.clone(), value.clone())?;
                     }
 
                     Ok(value)
@@ -92,8 +92,8 @@ fn eval_inner(
 
                 Value::Symbol(Symbol(keyword)) if keyword == "defun" => {
                     let cdr = list.cdr();
-                    let symbol = cdr.car()?;
-                    let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
+                    let symbol = &cdr.car()?;
+                    let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
                         msg: format!(
                             "Function name must by a symbol; received \"{}\", which is a {}",
                             symbol,
@@ -109,7 +109,7 @@ fn eval_inner(
                         body,
                     });
 
-                    env.borrow_mut().define(symbol, lambda);
+                    env.borrow_mut().define(symbol.clone(), lambda);
 
                     Ok(Value::NIL)
                 }
@@ -130,63 +130,57 @@ fn eval_inner(
 
                 Value::Symbol(Symbol(keyword)) if keyword == "let" => {
                     let let_env = Rc::new(RefCell::new(Env::extend(env)));
-                    let declarations = list.cdr().car()?;
-
-                    for decl in declarations
-                        .as_list()
-                        .ok_or_else(|| RuntimeError {
+                    let declarations = &list.cdr().car()?;
+                    let declarations: &List =
+                        declarations.try_into().map_err(|_| RuntimeError {
                             msg: "Expected list of declarations for let form".to_owned(),
-                        })?
-                        .into_iter()
-                    {
-                        let decl_cons = decl.as_list().ok_or_else(|| RuntimeError {
+                        })?;
+
+                    for decl in declarations.into_iter() {
+                        let decl = &decl;
+
+                        let decl_cons: &List = decl.try_into().map_err(|_| RuntimeError {
                             msg: format!("Expected declaration clause, found {}", decl),
                         })?;
-                        let symbol = decl_cons.car()?;
-                        let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
+                        let symbol = &decl_cons.car()?;
+                        let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
                             msg: format!("Expected symbol for let declaration, found {}", symbol),
                         })?;
                         let expr = &decl_cons.cdr().car()?;
 
                         let result = eval_inner(let_env.clone(), expr, true, in_func)?;
-                        let_env.borrow_mut().define(symbol, result);
+                        let_env.borrow_mut().define(symbol.clone(), result);
                     }
 
-                    let body = Value::List(list.cdr().cdr());
+                    let body = &Value::List(list.cdr().cdr());
+                    let body: &List = body.try_into().map_err(|_| RuntimeError {
+                        msg: format!(
+                            "Expected expression(s) after let-declarations, found {}",
+                            body
+                        ),
+                    })?;
 
-                    eval_block_inner(
-                        let_env,
-                        body.as_list()
-                            .ok_or_else(|| RuntimeError {
-                                msg: format!(
-                                    "Expected expression(s) after let-declarations, found {}",
-                                    body
-                                ),
-                            })?
-                            .into_iter(),
-                        found_tail,
-                        in_func,
-                    )
+                    eval_block_inner(let_env, body.into_iter(), found_tail, in_func)
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "begin" => {
-                    let body = Value::List(list.cdr()).as_list().unwrap();
-
-                    eval_block_inner(env, body.into_iter(), found_tail, in_func)
+                    eval_block_inner(env, list.cdr().into_iter(), found_tail, in_func)
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "cond" => {
                     let clauses = list.cdr();
 
                     for clause in clauses.into_iter() {
-                        let clause = clause.as_list().ok_or_else(|| RuntimeError {
+                        let clause = &clause;
+
+                        let clause: &List = clause.try_into().map_err(|_| RuntimeError {
                             msg: format!("Expected conditional clause, found {}", clause),
                         })?;
 
                         let condition = &clause.car()?;
                         let then = &clause.cdr().car()?;
 
-                        if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
+                        if eval_inner(env.clone(), condition, true, in_func)?.into() {
                             return eval_inner(env, then, found_tail, in_func);
                         }
                     }
@@ -200,7 +194,7 @@ fn eval_inner(
                     let then_expr = &cdr.cdr().car()?;
                     let else_expr = cdr.cdr().cdr().car().ok();
 
-                    if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
+                    if eval_inner(env.clone(), condition, true, in_func)?.into() {
                         Ok(eval_inner(env, then_expr, found_tail, in_func)?)
                     } else {
                         else_expr
@@ -216,17 +210,17 @@ fn eval_inner(
 
                     let truth = match keyword.as_str() {
                         "and" => {
-                            eval_inner(env.clone(), a, true, in_func)?.is_truthy()
-                                && eval_inner(env, b, true, in_func)?.is_truthy()
+                            eval_inner(env.clone(), a, true, in_func)?.into()
+                                && eval_inner(env, b, true, in_func)?.into()
                         }
                         "or" => {
-                            eval_inner(env.clone(), a, true, in_func)?.is_truthy()
-                                || eval_inner(env, b, true, in_func)?.is_truthy()
+                            eval_inner(env.clone(), a, true, in_func)?.into()
+                                || eval_inner(env, b, true, in_func)?.into()
                         }
                         _ => unreachable!("Only 'and' and 'or' are allowed by the match arm"),
                     };
 
-                    Ok(Value::from_truth(truth))
+                    Ok(Value::from(truth))
                 }
 
                 // function call
@@ -235,22 +229,19 @@ fn eval_inner(
                     let args = list
                         .into_iter()
                         .skip(1)
-                        .map(|car| eval_inner(env.clone(), &car, true, in_func));
+                        .map(|car| eval_inner(env.clone(), &car, true, in_func))
+                        .collect::<Result<Vec<Value>, RuntimeError>>()?;
 
                     if !found_tail && in_func {
                         Ok(Value::TailCall {
                             func: Rc::new(func),
-                            args: args.filter_map(|a| a.ok()).collect(),
+                            args,
                         })
                     } else {
-                        let mut res = call_function(env.clone(), &func, args.collect());
+                        let mut res = call_function(env.clone(), &func, args);
 
                         while let Ok(Value::TailCall { func, args }) = res {
-                            res = call_function(
-                                env.clone(),
-                                &func,
-                                args.iter().map(|arg| Ok(arg.clone())).collect(),
-                            );
+                            res = call_function(env.clone(), &func, args);
                         }
 
                         res
@@ -294,47 +285,34 @@ fn value_to_argnames(argnames: Value) -> Result<Vec<Symbol>, RuntimeError> {
 fn call_function(
     env: Rc<RefCell<Env>>,
     func: &Value,
-    args: Vec<Result<Value, RuntimeError>>,
+    args: Vec<Value>,
 ) -> Result<Value, RuntimeError> {
     match func {
         // call native function
-        Value::NativeFunc(func) => {
-            let args_vec = args
-                .into_iter()
-                .collect::<Result<Vec<Value>, RuntimeError>>()?;
-
-            func(env, &args_vec)
-        }
+        Value::NativeFunc(func) => func(env, &args),
 
         // call lambda function
         Value::Lambda(lamb) => {
             // bind args
-            let mut entries = HashMap::new();
-
+            let mut arg_env = Env::extend(lamb.closure.clone());
             for (index, arg_name) in lamb.argnames.iter().enumerate() {
                 if arg_name.0 == "..." {
                     // rest parameters
-                    entries.insert(
+                    arg_env.define(
                         Symbol::from("..."),
-                        Value::List(
-                            args.into_iter()
-                                .skip(index)
-                                .filter_map(|a| a.ok())
-                                .collect(),
-                        ),
+                        Value::List(args.into_iter().skip(index).collect()),
                     );
                     break;
                 } else {
-                    entries.insert(arg_name.clone(), args[index].clone()?);
+                    arg_env.define(arg_name.clone(), args[index].clone());
                 }
             }
 
-            let arg_env = Rc::new(RefCell::new(Env::extend(lamb.closure.clone())));
-
             // evaluate each line of body
+            let clauses: &List = lamb.body.as_ref().try_into()?;
             eval_block_inner(
-                arg_env,
-                lamb.body.as_list().unwrap().into_iter(),
+                Rc::new(RefCell::new(arg_env)),
+                clauses.into_iter(),
                 false,
                 true,
             )

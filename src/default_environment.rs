@@ -1,7 +1,7 @@
 use crate::{
     interpreter::eval,
     lisp,
-    model::{Env, FloatType, List, RuntimeError, Symbol, Value},
+    model::{Env, FloatType, IntType, List, RuntimeError, Symbol, Value},
     utils::{
         require_hash_parameter, require_int_parameter, require_list_parameter, require_parameter,
     },
@@ -11,8 +11,6 @@ use std::{cell::RefCell, collections::HashMap, convert::TryInto, rc::Rc};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
-    } else {
-        use crate::model::IntType;
     }
 }
 
@@ -37,7 +35,7 @@ pub fn default_env() -> Env {
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_null", args, 0)?;
 
-            Ok(Value::from_truth(*val == Value::NIL))
+            Ok(Value::from(*val == Value::NIL))
         }),
     );
 
@@ -206,10 +204,13 @@ pub fn default_env() -> Env {
                     let expr = lisp! { ({func.clone()} (quote {val.clone()})) };
 
                     match eval(env.clone(), &expr) {
-                        Ok(matches) => match matches.is_truthy() {
-                            true => Some(Ok(val)),
-                            false => None,
-                        },
+                        Ok(matches) => {
+                            if matches.into() {
+                                Some(Ok(val))
+                            } else {
+                                None
+                            }
+                        }
                         Err(e) => Some(Err(e)),
                     }
                 })
@@ -241,14 +242,13 @@ pub fn default_env() -> Env {
 
             cfg_if! {
                 if #[cfg(feature = "bigint")] {
-                    let start = start.to_i128().ok_or_else(|| RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
-                    let end = end.to_i128().ok_or_else(|| RuntimeError { msg: "Failed converting to `i128`".to_owned() })?;
+                    let range = bigint_range(start, end);
+                } else {
+                    let range = start..end;
                 }
             }
 
-            Ok(Value::List(
-                (start..end).map(Value::from_int).collect::<List>(),
-            ))
+            Ok(Value::List(range.map(Value::from).collect()))
         }),
     );
 
@@ -374,11 +374,17 @@ pub fn default_env() -> Env {
             let a = require_parameter("-", args, 0)?;
             let b = require_parameter("-", args, 1)?;
 
-            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<IntType>::try_into(a),
+                TryInto::<IntType>::try_into(b),
+            ) {
                 return Ok(Value::Int(a - b));
             }
 
-            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<FloatType>::try_into(a),
+                TryInto::<FloatType>::try_into(b),
+            ) {
                 return Ok(Value::Float(a - b));
             }
 
@@ -394,11 +400,17 @@ pub fn default_env() -> Env {
             let a = require_parameter("*", args, 0)?;
             let b = require_parameter("*", args, 1)?;
 
-            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<IntType>::try_into(a),
+                TryInto::<IntType>::try_into(b),
+            ) {
                 return Ok(Value::Int(a * b));
             }
 
-            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<FloatType>::try_into(a),
+                TryInto::<FloatType>::try_into(b),
+            ) {
                 return Ok(Value::Float(a * b));
             }
 
@@ -414,11 +426,17 @@ pub fn default_env() -> Env {
             let a = require_parameter("/", args, 0)?;
             let b = require_parameter("/", args, 1)?;
 
-            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<IntType>::try_into(a),
+                TryInto::<IntType>::try_into(b),
+            ) {
                 return Ok(Value::Int(a / b));
             }
 
-            if let (Some(a), Some(b)) = (a.as_float(), b.as_float()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<FloatType>::try_into(a),
+                TryInto::<FloatType>::try_into(b),
+            ) {
                 return Ok(Value::Float(a / b));
             }
 
@@ -434,7 +452,10 @@ pub fn default_env() -> Env {
             let a = require_parameter("truncate", args, 0)?;
             let b = require_parameter("truncate", args, 1)?;
 
-            if let (Some(a), Some(b)) = (a.as_int(), b.as_int()) {
+            if let (Ok(a), Ok(b)) = (
+                TryInto::<IntType>::try_into(a),
+                TryInto::<IntType>::try_into(b),
+            ) {
                 return Ok(Value::Int(a / b));
             }
 
@@ -448,8 +469,9 @@ pub fn default_env() -> Env {
         Symbol::from("not"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("not", args, 0)?;
+            let a: bool = a.into();
 
-            Ok(Value::from_truth(!a.is_truthy()))
+            Ok(Value::from(!a))
         }),
     );
 
@@ -459,7 +481,7 @@ pub fn default_env() -> Env {
             let a = require_parameter("==", args, 0)?;
             let b = require_parameter("==", args, 1)?;
 
-            Ok(Value::from_truth(a == b))
+            Ok(Value::from(a == b))
         }),
     );
 
@@ -469,7 +491,7 @@ pub fn default_env() -> Env {
             let a = require_parameter("!=", args, 0)?;
             let b = require_parameter("!=", args, 1)?;
 
-            Ok(Value::from_truth(a != b))
+            Ok(Value::from(a != b))
         }),
     );
 
@@ -479,7 +501,7 @@ pub fn default_env() -> Env {
             let a = require_parameter("<", args, 0)?;
             let b = require_parameter("<", args, 1)?;
 
-            Ok(Value::from_truth(a < b))
+            Ok(Value::from(a < b))
         }),
     );
 
@@ -489,7 +511,7 @@ pub fn default_env() -> Env {
             let a = require_parameter("<=", args, 0)?;
             let b = require_parameter("<=", args, 1)?;
 
-            Ok(Value::from_truth(a <= b))
+            Ok(Value::from(a <= b))
         }),
     );
 
@@ -499,7 +521,7 @@ pub fn default_env() -> Env {
             let a = require_parameter(">", args, 0)?;
             let b = require_parameter(">", args, 1)?;
 
-            Ok(Value::from_truth(a > b))
+            Ok(Value::from(a > b))
         }),
     );
 
@@ -509,7 +531,7 @@ pub fn default_env() -> Env {
             let a = require_parameter(">=", args, 0)?;
             let b = require_parameter(">=", args, 1)?;
 
-            Ok(Value::from_truth(a >= b))
+            Ok(Value::from(a >= b))
         }),
     );
 
@@ -533,4 +555,23 @@ pub fn default_env() -> Env {
     );
 
     env
+}
+
+cfg_if! {
+    if #[cfg(feature = "bigint")] {
+        use num_bigint::BigInt;
+
+        fn bigint_range(start: BigInt, end: BigInt) -> impl Iterator<Item=BigInt> {
+            let mut current = start;
+
+            std::iter::from_fn(move || {
+                if current == end {
+                    None
+                } else {
+                    current += 1;
+                    Some(current.clone())
+                }
+            })
+        }
+    }
 }

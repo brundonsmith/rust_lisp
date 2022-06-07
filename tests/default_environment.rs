@@ -2,7 +2,7 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{List, Symbol, Value},
+    model::{IntType, List, Symbol, Value},
     parser::parse,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -25,7 +25,7 @@ fn nth() {
         eval_ast(lisp! {
             (nth 3 (range 5 15))
         }),
-        Value::from_int(8)
+        Value::from(Into::<IntType>::into(8))
     );
 }
 

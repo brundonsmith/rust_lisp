@@ -2,7 +2,7 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{List, RuntimeError, Symbol, Value},
+    model::{IntType, List, RuntimeError, Symbol, Value},
     parser::parse,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc};
 fn eval_basic_expression() {
     let result = eval_str("(+ (* 1 2) (/ 6 3))");
 
-    assert_eq!(result, Value::from_int(4));
+    assert_eq!(result, Value::from(Into::<IntType>::into(4)));
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn eval_quote_tick_list() {
 fn eval_quote_tick_atom() {
     let result = eval_str("(nth 0 (list '12))");
 
-    assert_eq!(result, Value::from_int(12));
+    assert_eq!(result, Value::from(Into::<IntType>::into(12)));
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn eval_set_global() {
       foo)",
     );
 
-    assert_eq!(result, Value::from_int(13));
+    assert_eq!(result, Value::from(Into::<IntType>::into(13)));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn eval_set_local() {
       foo)",
     );
 
-    assert_eq!(result, Value::from_int(12));
+    assert_eq!(result, Value::from(Into::<IntType>::into(12)));
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn tail_call_test() {
   ",
     );
 
-    assert_eq!(result, Value::from_int(0));
+    assert_eq!(result, Value::from(Into::<IntType>::into(0)));
 }
 
 #[test]

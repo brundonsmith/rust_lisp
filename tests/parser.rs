@@ -1,5 +1,5 @@
 use rust_lisp::{
-    model::{List, Symbol, Value},
+    model::{IntType, List, Symbol, Value},
     parser::{parse, ParseError},
 };
 
@@ -41,7 +41,7 @@ fn parse_atom() {
     let source = "12";
     let ast = parse(source).next().unwrap().unwrap();
 
-    assert_eq!(ast, Value::from_int(12));
+    assert_eq!(ast, Value::from(Into::<IntType>::into(12)));
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn parse_negative_float() {
     let source = "-1.2";
     let ast = parse(source).collect::<Vec<Result<Value, ParseError>>>();
 
-    assert_eq!(ast, vec![Ok(Value::from_float(-1.2))]);
+    assert_eq!(ast, vec![Ok(Value::from(-1.2))]);
 }
 
 #[test]
