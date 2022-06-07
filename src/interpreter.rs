@@ -58,22 +58,17 @@ fn eval_inner(
     found_tail: bool,
     in_func: bool,
 ) -> Result<Value, RuntimeError> {
-    let result: Result<Value, RuntimeError> = match expression {
+    match expression {
         // look up symbol
-        Value::Symbol(Symbol(symbol)) => match env.borrow().find(symbol) {
-            Some(expr) => Ok(expr),
-            None => Err(RuntimeError {
-                msg: format!("\"{}\" is not defined", symbol),
-            }),
-        },
-
-        Value::List(list) if *list == List::NIL => Ok(Value::NIL),
+        Value::Symbol(symbol) => env.borrow().get(symbol).ok_or_else(|| RuntimeError {
+            msg: format!("\"{}\" is not defined", symbol),
+        }),
 
         // s-expression
-        Value::List(list) => {
+        Value::List(list) if *list != List::NIL => {
             match &list.car()? {
                 // special forms
-                Value::Symbol(Symbol(symbol)) if symbol == "define" => {
+                Value::Symbol(Symbol(keyword)) if keyword == "define" || keyword == "set" => {
                     let cdr = list.cdr();
                     let symbol = cdr.car()?;
                     let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
@@ -86,54 +81,18 @@ fn eval_inner(
                     let value_expr = &cdr.cdr().car()?;
                     let value = eval_inner(env.clone(), value_expr, true, in_func)?;
 
-                    env.borrow_mut().entries.insert(symbol, value.clone());
-
-                    Ok(value)
-                }
-
-                Value::Symbol(Symbol(symbol)) if symbol == "set" => {
-                    let cdr = list.cdr();
-                    let arg1 = cdr.car()?;
-                    let symbol = arg1.as_symbol().ok_or_else(|| RuntimeError {
-                        msg: format!("{} is not a valid set target", arg1),
-                    })?;
-                    let value_expr = &cdr.cdr().car()?;
-                    let value = eval_inner(env.clone(), value_expr, true, in_func)?;
-
-                    if env.borrow().entries.contains_key(&symbol) {
-                        env.borrow_mut().entries.insert(symbol, value.clone());
+                    if keyword == "define" {
+                        env.borrow_mut().define(symbol, value.clone());
                     } else {
-                        let mut focal_env: Option<Rc<RefCell<Env>>> = env.borrow().parent.clone();
-
-                        while focal_env
-                            .as_ref()
-                            .map_or(false, |e| !e.borrow().entries.contains_key(&symbol))
-                        {
-                            let rc = focal_env.unwrap();
-                            focal_env = rc.borrow().parent.clone();
-                        }
-
-                        if let Some(env) = focal_env {
-                            env.borrow_mut().entries.insert(symbol, value.clone());
-                        } else {
-                            return Err(RuntimeError {
-                                msg: format!(
-                                    "Tried to set value of undefined symbol \"{}\"",
-                                    symbol
-                                ),
-                            });
-                        }
+                        env.borrow_mut().set(symbol, value.clone())?;
                     }
 
                     Ok(value)
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "defun" => {
-                    let mut list_iter = list.into_iter();
-                    list_iter.next(); // skip "defun"
-                    let symbol = list_iter.next().ok_or_else(|| RuntimeError {
-                        msg: "Expected function name".to_owned(),
-                    })?;
+                Value::Symbol(Symbol(keyword)) if keyword == "defun" => {
+                    let cdr = list.cdr();
+                    let symbol = cdr.car()?;
                     let symbol = symbol.as_symbol().ok_or_else(|| RuntimeError {
                         msg: format!(
                             "Function name must by a symbol; received \"{}\", which is a {}",
@@ -141,14 +100,8 @@ fn eval_inner(
                             symbol.type_name()
                         ),
                     })?;
-                    let argnames =
-                        value_to_argnames(list_iter.next().ok_or_else(|| RuntimeError {
-                            msg: format!(
-                                "Expected argument list in function definition for \"{}\"",
-                                symbol
-                            ),
-                        })?)?;
-                    let body = Rc::new(Value::List(list_iter.collect::<List>()));
+                    let argnames = value_to_argnames(cdr.cdr().car()?)?;
+                    let body = Rc::new(Value::List(cdr.cdr().cdr()));
 
                     let lambda = Value::Lambda(Lambda {
                         closure: env.clone(),
@@ -156,12 +109,12 @@ fn eval_inner(
                         body,
                     });
 
-                    env.borrow_mut().entries.insert(symbol, lambda);
+                    env.borrow_mut().define(symbol, lambda);
 
                     Ok(Value::NIL)
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "lambda" => {
+                Value::Symbol(Symbol(keyword)) if keyword == "lambda" => {
                     let cdr = list.cdr();
                     let argnames = value_to_argnames(cdr.car()?)?;
                     let body = Rc::new(Value::List(cdr.cdr()));
@@ -173,17 +126,10 @@ fn eval_inner(
                     }))
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "quote" => {
-                    let exp = list.cdr().car()?;
+                Value::Symbol(Symbol(keyword)) if keyword == "quote" => Ok(list.cdr().car()?),
 
-                    Ok(exp)
-                }
-
-                Value::Symbol(Symbol(symbol)) if symbol == "let" => {
-                    let let_env = Rc::new(RefCell::new(Env {
-                        parent: Some(env),
-                        entries: HashMap::new(),
-                    }));
+                Value::Symbol(Symbol(keyword)) if keyword == "let" => {
+                    let let_env = Rc::new(RefCell::new(Env::extend(env)));
                     let declarations = list.cdr().car()?;
 
                     for decl in declarations
@@ -203,7 +149,7 @@ fn eval_inner(
                         let expr = &decl_cons.cdr().car()?;
 
                         let result = eval_inner(let_env.clone(), expr, true, in_func)?;
-                        let_env.borrow_mut().entries.insert(symbol, result);
+                        let_env.borrow_mut().define(symbol, result);
                     }
 
                     let body = Value::List(list.cdr().cdr());
@@ -223,20 +169,14 @@ fn eval_inner(
                     )
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "begin" => {
-                    let body = Value::List(list.cdr());
+                Value::Symbol(Symbol(keyword)) if keyword == "begin" => {
+                    let body = Value::List(list.cdr()).as_list().unwrap();
 
-                    eval_block_inner(
-                        env,
-                        body.as_list().unwrap().into_iter(),
-                        found_tail,
-                        in_func,
-                    )
+                    eval_block_inner(env, body.into_iter(), found_tail, in_func)
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "cond" => {
+                Value::Symbol(Symbol(keyword)) if keyword == "cond" => {
                     let clauses = list.cdr();
-                    let mut result = Value::NIL;
 
                     for clause in clauses.into_iter() {
                         let clause = clause.as_list().ok_or_else(|| RuntimeError {
@@ -247,50 +187,46 @@ fn eval_inner(
                         let then = &clause.cdr().car()?;
 
                         if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
-                            result = eval_inner(env, then, found_tail, in_func)?;
-                            break;
+                            return eval_inner(env, then, found_tail, in_func);
                         }
                     }
 
-                    Ok(result)
+                    Ok(Value::NIL)
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "if" => {
+                Value::Symbol(Symbol(keyword)) if keyword == "if" => {
                     let cdr = list.cdr();
                     let condition = &cdr.car()?;
-                    let then_result = &cdr.cdr().car()?;
-                    let else_result = cdr.cdr().cdr().car().ok();
+                    let then_expr = &cdr.cdr().car()?;
+                    let else_expr = cdr.cdr().cdr().car().ok();
 
                     if eval_inner(env.clone(), condition, true, in_func)?.is_truthy() {
-                        Ok(eval_inner(env, then_result, found_tail, in_func)?)
+                        Ok(eval_inner(env, then_expr, found_tail, in_func)?)
                     } else {
-                        Ok(match else_result {
-                            Some(v) => eval_inner(env, &v, found_tail, in_func)?,
-                            None => Value::NIL,
-                        })
+                        else_expr
+                            .map(|expr| eval_inner(env, &expr, found_tail, in_func))
+                            .unwrap_or(Ok(Value::NIL))
                     }
                 }
 
-                Value::Symbol(Symbol(symbol)) if symbol == "and" => {
+                Value::Symbol(Symbol(keyword)) if keyword == "and" || keyword == "or" => {
                     let cdr = list.cdr();
                     let a = &cdr.car()?;
                     let b = &cdr.cdr().car()?;
 
-                    Ok(Value::from_truth(
-                        eval_inner(env.clone(), a, true, in_func)?.is_truthy()
-                            && eval_inner(env, b, true, in_func)?.is_truthy(),
-                    ))
-                }
+                    let truth = match keyword.as_str() {
+                        "and" => {
+                            eval_inner(env.clone(), a, true, in_func)?.is_truthy()
+                                && eval_inner(env, b, true, in_func)?.is_truthy()
+                        }
+                        "or" => {
+                            eval_inner(env.clone(), a, true, in_func)?.is_truthy()
+                                || eval_inner(env, b, true, in_func)?.is_truthy()
+                        }
+                        _ => unreachable!("Only 'and' and 'or' are allowed by the match arm"),
+                    };
 
-                Value::Symbol(Symbol(symbol)) if symbol == "or" => {
-                    let cdr = list.cdr();
-                    let a = &cdr.car()?;
-                    let b = &cdr.cdr().car()?;
-
-                    Ok(Value::from_truth(
-                        eval_inner(env.clone(), a, true, in_func)?.is_truthy()
-                            || eval_inner(env, b, true, in_func)?.is_truthy(),
-                    ))
+                    Ok(Value::from_truth(truth))
                 }
 
                 // function call
@@ -302,16 +238,13 @@ fn eval_inner(
                         .map(|car| eval_inner(env.clone(), &car, true, in_func));
 
                     if !found_tail && in_func {
-                        let args_vec = args.filter_map(|a| a.ok()).collect();
-
-                        let expr = Value::TailCall {
+                        Ok(Value::TailCall {
                             func: Rc::new(func),
-                            args: args_vec,
-                        };
-
-                        return Ok(expr);
+                            args: args.filter_map(|a| a.ok()).collect(),
+                        })
                     } else {
                         let mut res = call_function(env.clone(), &func, args.collect());
+
                         while let Ok(Value::TailCall { func, args }) = res {
                             res = call_function(
                                 env.clone(),
@@ -328,9 +261,7 @@ fn eval_inner(
 
         // plain value
         _ => Ok(expression.clone()),
-    };
-
-    result
+    }
 }
 // 🦀 Boo! Did I scare ya? Haha!
 
@@ -368,43 +299,37 @@ fn call_function(
     match func {
         // call native function
         Value::NativeFunc(func) => {
-            let err = args.iter().find_map(|a| a.clone().err());
+            let args_vec = args
+                .into_iter()
+                .collect::<Result<Vec<Value>, RuntimeError>>()?;
 
-            let args_vec = args.iter().filter_map(|a| a.clone().ok()).collect();
-
-            match err {
-                Some(e) => Err(e),
-                None => func(env, &args_vec),
-            }
+            func(env, &args_vec)
         }
 
         // call lambda function
         Value::Lambda(lamb) => {
             // bind args
-            let mut entries: HashMap<String, Value> = HashMap::new();
+            let mut entries = HashMap::new();
 
             for (index, arg_name) in lamb.argnames.iter().enumerate() {
                 if arg_name.0 == "..." {
                     // rest parameters
                     entries.insert(
-                        String::from("..."),
+                        Symbol::from("..."),
                         Value::List(
                             args.into_iter()
                                 .skip(index)
                                 .filter_map(|a| a.ok())
-                                .collect::<List>(),
+                                .collect(),
                         ),
                     );
                     break;
                 } else {
-                    entries.insert(arg_name.0.clone(), args[index].clone()?);
+                    entries.insert(arg_name.clone(), args[index].clone()?);
                 }
             }
 
-            let arg_env = Rc::new(RefCell::new(Env {
-                parent: Some(lamb.closure.clone()),
-                entries,
-            }));
+            let arg_env = Rc::new(RefCell::new(Env::extend(lamb.closure.clone())));
 
             // evaluate each line of body
             eval_block_inner(
@@ -414,8 +339,9 @@ fn call_function(
                 true,
             )
         }
+
         _ => Err(RuntimeError {
-            msg: String::from("Argument 0 is not callable"),
+            msg: format!("{} is not callable", func),
         }),
     }
 }

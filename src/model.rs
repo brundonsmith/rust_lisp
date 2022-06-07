@@ -2,11 +2,7 @@ use crate::lisp;
 use cfg_if::cfg_if;
 use std::rc::Rc;
 use std::{cell::RefCell, cmp::Ordering};
-use std::{
-    collections::HashMap,
-    error::Error,
-    fmt::{Debug, Display},
-};
+use std::{collections::HashMap, error::Error, fmt::Debug};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_bigint::BigInt;
@@ -59,6 +55,18 @@ pub enum Value {
  */
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Symbol(pub String);
+
+impl From<&str> for Symbol {
+    fn from(s: &str) -> Self {
+        Symbol(String::from(s))
+    }
+}
+
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
@@ -135,15 +143,15 @@ impl Value {
         }
     }
 
-    pub fn as_symbol(&self) -> Option<String> {
+    pub fn as_symbol(&self) -> Option<Symbol> {
         match self {
-            Value::Symbol(Symbol(name)) => Some(name.clone()),
+            Value::Symbol(name) => Some(name.clone()),
             _ => None,
         }
     }
 }
 
-impl Display for Value {
+impl std::fmt::Display for Value {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Value::NativeFunc(_) => write!(formatter, "<native_function>"),
@@ -577,7 +585,7 @@ pub struct RuntimeError {
     pub msg: String,
 }
 
-impl Display for RuntimeError {
+impl std::fmt::Display for RuntimeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(formatter, "Runtime error: {}", self.msg)
     }
@@ -593,54 +601,113 @@ impl Error for RuntimeError {
 /// closures, for `let` statements, for function arguments, etc.
 #[derive(Debug)]
 pub struct Env {
-    pub parent: Option<Rc<RefCell<Env>>>,
-    pub entries: HashMap<String, Value>,
+    parent: Option<Rc<RefCell<Env>>>,
+    entries: HashMap<Symbol, Value>,
 }
 
 impl Env {
+    /// Create a new, empty environment
+    pub fn new() -> Self {
+        Self {
+            parent: None,
+            entries: HashMap::new(),
+        }
+    }
+
+    /// Create a new environment extending the given environment
+    pub fn extend(parent: Rc<RefCell<Env>>) -> Self {
+        Self {
+            parent: Some(parent),
+            entries: HashMap::new(),
+        }
+    }
+
     /// Walks up the environment hierarchy until it finds the symbol's value or
     /// runs out of environments.
-    pub fn find(&self, symbol: &str) -> Option<Value> {
-        if self.entries.contains_key(symbol) {
-            self.entries.get(symbol).cloned() // clone the Rc
-        } else if self.parent.is_some() {
-            self.parent.as_ref().unwrap().borrow_mut().find(symbol)
+    pub fn get(&self, key: &Symbol) -> Option<Value> {
+        if let Some(val) = self.entries.get(&key) {
+            Some(val.clone()) // clone the Rc
+        } else if let Some(parent) = &self.parent {
+            parent.borrow().get(key)
         } else {
             None
         }
     }
+
+    /// Define a new key in the current environment
+    pub fn define(&mut self, key: Symbol, value: Value) {
+        self.entries.insert(key, value);
+    }
+
+    /// Find the environment where this key is defined, and update its value.
+    /// Returns an Err if the symbol has not been defined anywhere in the hierarchy.
+    pub fn set(&mut self, key: Symbol, value: Value) -> Result<(), RuntimeError> {
+        if self.entries.contains_key(&key) {
+            self.entries.insert(key, value);
+            Ok(())
+        } else if let Some(parent) = &self.parent {
+            parent.borrow_mut().set(key, value)
+        } else {
+            Err(RuntimeError {
+                msg: format!("Tried to set value of undefined symbol \"{}\"", key),
+            })
+        }
+    }
+
+    /// Delete the nearest (going upwards) definition of this key
+    pub fn undefine(&mut self, key: &Symbol) {
+        if self.entries.contains_key(key) {
+            self.entries.remove(key);
+        } else if let Some(parent) = &self.parent {
+            parent.borrow_mut().undefine(key);
+        }
+    }
+
+    fn display_recursive(&self, output: &mut String, depth: i32) {
+        let indent = &(0..depth).map(|_| "  ").collect::<String>();
+
+        output.push_str(indent);
+        output.push_str("{ ");
+
+        for (symbol, value) in &self.entries {
+            output.push_str(format!("\n{}  {}: {}", indent, symbol, value).as_str());
+        }
+
+        if let Some(parent) = &self.parent {
+            output.push_str("\n\n");
+            parent
+                .as_ref()
+                .borrow()
+                .display_recursive(output, depth + 1);
+        }
+
+        output.push('\n');
+        output.push_str(indent);
+        output.push('}');
+    }
 }
 
-impl Display for Env {
+impl std::fmt::Display for Env {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut output = String::new();
 
         output.push_str("Env: ");
-        display_one_env_level(self, &mut output, 0);
+        self.display_recursive(&mut output, 0);
 
         write!(formatter, "{}", &output)
     }
 }
 
-fn display_one_env_level(env: &Env, output: &mut String, depth: i32) {
-    let indent = &(0..depth).map(|_| "  ").collect::<String>();
+#[test]
+fn foo() {
+    let mut env = Env::new();
 
-    output.push_str(indent);
-    output.push_str("{ ");
+    env.define(Symbol::from("foo"), Value::Float(12.0));
+    env.define(Symbol::from("bar"), Value::String("stuff".to_owned()));
 
-    for (symbol, value) in &env.entries {
-        output.push_str(format!("\n{}  {}: {}", indent, symbol, value).as_str());
-    }
+    let mut extended = Env::extend(Rc::new(RefCell::new(env)));
 
-    match &env.parent {
-        Some(parent) => {
-            output.push_str("\n\n");
-            display_one_env_level(&parent.as_ref().borrow(), output, depth + 1);
-        }
-        None => (),
-    }
+    extended.define(Symbol::from("other"), Value::Float(0.0));
 
-    output.push('\n');
-    output.push_str(indent);
-    output.push('}');
+    println!("{}", &extended);
 }

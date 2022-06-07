@@ -303,19 +303,13 @@ fn consume_whitespace_and_comments(code: &str, index: usize) -> usize {
     let mut semicolons = 0;
 
     consume_while(code, index, move |(_, ch)| {
-        if semicolons < 2 && ch == ';' {
+        if ch == ';' {
             semicolons += 1;
+        } else if semicolons < 2 || ch == '\n' {
+            semicolons = 0;
         }
 
-        if ch.is_whitespace() || ch == ';' || semicolons >= 2 {
-            if ch == '\n' {
-                semicolons = 0;
-            }
-
-            true
-        } else {
-            false
-        }
+        return ch.is_whitespace() || ch == ';' || semicolons >= 2;
     })
     .map(|(index, _)| index + 1)
     .unwrap_or(index)

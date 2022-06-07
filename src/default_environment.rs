@@ -20,10 +20,10 @@ cfg_if! {
 /// in Rust. **Without this, you will only have access to the functions you
 /// implement yourself.**
 pub fn default_env() -> Env {
-    let mut entries = HashMap::new();
+    let mut env = Env::new();
 
-    entries.insert(
-        String::from("print"),
+    env.define(
+        Symbol::from("print"),
         Value::NativeFunc(|_env, args| {
             let expr = require_parameter("print", args, 0)?;
 
@@ -32,8 +32,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("is_null"),
+    env.define(
+        Symbol::from("is_null"),
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_null", args, 0)?;
 
@@ -41,8 +41,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("is_number"),
+    env.define(
+        Symbol::from("is_number"),
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_number", args, 0)?;
 
@@ -54,8 +54,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("is_symbol"),
+    env.define(
+        Symbol::from("is_symbol"),
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_symbol", args, 0)?;
 
@@ -66,8 +66,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("is_boolean"),
+    env.define(
+        Symbol::from("is_boolean"),
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_boolean", args, 0)?;
 
@@ -79,8 +79,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("is_procedure"),
+    env.define(
+        Symbol::from("is_procedure"),
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_procedure", args, 0)?;
 
@@ -92,8 +92,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("is_pair"),
+    env.define(
+        Symbol::from("is_pair"),
         Value::NativeFunc(|_env, args| {
             let val = require_parameter("is_pair", args, 0)?;
 
@@ -104,8 +104,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("car"),
+    env.define(
+        Symbol::from("car"),
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("car", args, 0)?;
 
@@ -113,8 +113,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("cdr"),
+    env.define(
+        Symbol::from("cdr"),
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("cdr", args, 0)?;
 
@@ -122,8 +122,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("cons"),
+    env.define(
+        Symbol::from("cons"),
         Value::NativeFunc(|_env, args| {
             let car = require_parameter("cons", args, 0)?;
             let cdr = require_list_parameter("cons", args, 1)?;
@@ -132,13 +132,13 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("list"),
+    env.define(
+        Symbol::from("list"),
         Value::NativeFunc(|_env, args| Ok(Value::List(args.iter().collect::<List>()))),
     );
 
-    entries.insert(
-        String::from("nth"),
+    env.define(
+        Symbol::from("nth"),
         Value::NativeFunc(|_env, args| {
             let index = require_int_parameter("nth", args, 0)?;
             let list = require_list_parameter("nth", args, 1)?;
@@ -151,8 +151,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("sort"),
+    env.define(
+        Symbol::from("sort"),
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("sort", args, 0)?;
 
@@ -164,8 +164,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("reverse"),
+    env.define(
+        Symbol::from("reverse"),
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("reverse", args, 0)?;
 
@@ -177,8 +177,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("map"),
+    env.define(
+        Symbol::from("map"),
         Value::NativeFunc(|env, args| {
             let func = require_parameter("map", args, 0)?;
             let list = require_list_parameter("map", args, 1)?;
@@ -195,8 +195,8 @@ pub fn default_env() -> Env {
     );
 
     // 🦀 Oh the poor `filter`, you must feel really sad being unused.
-    entries.insert(
-        String::from("filter"),
+    env.define(
+        Symbol::from("filter"),
         Value::NativeFunc(|env, args| {
             let func = require_parameter("filter", args, 0)?;
             let list = require_list_parameter("filter", args, 1)?;
@@ -218,8 +218,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("length"),
+    env.define(
+        Symbol::from("length"),
         Value::NativeFunc(|_env, args| {
             let list = require_list_parameter("length", args, 0)?;
 
@@ -233,8 +233,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("range"),
+    env.define(
+        Symbol::from("range"),
         Value::NativeFunc(|_env, args| {
             let start = require_int_parameter("range", args, 0)?;
             let end = require_int_parameter("range", args, 1)?;
@@ -252,8 +252,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("hash"),
+    env.define(
+        Symbol::from("hash"),
         Value::NativeFunc(|_env, args| {
             let chunks = args.chunks(2);
 
@@ -276,8 +276,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("hash_get"),
+    env.define(
+        Symbol::from("hash_get"),
         Value::NativeFunc(|_env, args| {
             let hash = require_hash_parameter("hash_get", args, 0)?;
             let key = require_parameter("hash_get", args, 1)?;
@@ -290,8 +290,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("hash_set"),
+    env.define(
+        Symbol::from("hash_set"),
         Value::NativeFunc(|_env, args| {
             let hash = require_hash_parameter("hash_set", args, 0)?;
             let key = require_parameter("hash_set", args, 1)?;
@@ -303,8 +303,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("+"),
+    env.define(
+        Symbol::from("+"),
         Value::NativeFunc(|_env, args| {
             let mut total = Value::NIL;
 
@@ -368,8 +368,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("-"),
+    env.define(
+        Symbol::from("-"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("-", args, 0)?;
             let b = require_parameter("-", args, 1)?;
@@ -388,8 +388,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("*"),
+    env.define(
+        Symbol::from("*"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("*", args, 0)?;
             let b = require_parameter("*", args, 1)?;
@@ -408,8 +408,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("/"),
+    env.define(
+        Symbol::from("/"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("/", args, 0)?;
             let b = require_parameter("/", args, 1)?;
@@ -428,8 +428,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("truncate"),
+    env.define(
+        Symbol::from("truncate"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("truncate", args, 0)?;
             let b = require_parameter("truncate", args, 1)?;
@@ -444,8 +444,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("not"),
+    env.define(
+        Symbol::from("not"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("not", args, 0)?;
 
@@ -453,8 +453,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("=="),
+    env.define(
+        Symbol::from("=="),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("==", args, 0)?;
             let b = require_parameter("==", args, 1)?;
@@ -463,8 +463,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("!="),
+    env.define(
+        Symbol::from("!="),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("!=", args, 0)?;
             let b = require_parameter("!=", args, 1)?;
@@ -473,8 +473,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("<"),
+    env.define(
+        Symbol::from("<"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("<", args, 0)?;
             let b = require_parameter("<", args, 1)?;
@@ -483,8 +483,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("<="),
+    env.define(
+        Symbol::from("<="),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter("<=", args, 0)?;
             let b = require_parameter("<=", args, 1)?;
@@ -493,8 +493,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from(">"),
+    env.define(
+        Symbol::from(">"),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter(">", args, 0)?;
             let b = require_parameter(">", args, 1)?;
@@ -503,8 +503,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from(">="),
+    env.define(
+        Symbol::from(">="),
         Value::NativeFunc(|_env, args| {
             let a = require_parameter(">=", args, 0)?;
             let b = require_parameter(">=", args, 1)?;
@@ -513,8 +513,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("eval"),
+    env.define(
+        Symbol::from("eval"),
         Value::NativeFunc(|env, args| {
             let expr = require_parameter("eval", args, 0)?;
 
@@ -522,8 +522,8 @@ pub fn default_env() -> Env {
         }),
     );
 
-    entries.insert(
-        String::from("apply"),
+    env.define(
+        Symbol::from("apply"),
         Value::NativeFunc(|env, args| {
             let func = require_parameter("apply", args, 0)?;
             let params = require_list_parameter("apply", args, 1)?;
@@ -532,8 +532,5 @@ pub fn default_env() -> Env {
         }),
     );
 
-    Env {
-        parent: None,
-        entries,
-    }
+    env
 }
