@@ -19,7 +19,7 @@ and `num-bigint` is entirely opt-in (at build time)
 
 ```rust
 [dependencies]
-rust_lisp = "0.13.0"
+rust_lisp = "0.13.1"
 ```
 
 ```rust
@@ -72,7 +72,7 @@ an entry to the environment is also how you would expose your Rust functions to
 your scripts, which can take the form of either regular functions or closures:
 
 ```rust
-fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value,RuntimeError> {
+fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError> {
   println!("Hello world!");
   return Ok(Value::NIL);
 }
@@ -80,18 +80,20 @@ fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value,RuntimeErro
 ...
 
 env.borrow_mut().define(
-  String::from("sayhello"),
-  Value::NativeFunc(my_func));
+  Symbol::from("sayhello"),
+  Value::NativeFunc(my_func)
+);
 ```
 
 ```rust
 env.borrow_mut().define(
-  String::from("sayhello"),
+  Symbol::from("sayhello"),
   Value::NativeFunc(
     |env, args| {
       println!("Hello world!");
       return Ok(Value::NIL);
-    }));
+    })
+);
 ```
 
 In either case, a native function must have the following function signature:
