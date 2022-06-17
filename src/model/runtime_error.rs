@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 
-/**
- * An error that occurred while evaluating some lisp code
- */
+/// An error that occurred while evaluating some lisp code
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeError {
     pub msg: String,

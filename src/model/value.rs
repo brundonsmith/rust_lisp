@@ -46,6 +46,9 @@ pub enum Value {
     },
 }
 
+/// Implement this trait for a struct or enum, and then you'll be able to hold
+/// references to it in Value::Foreign and interact with it from lisp code via
+/// the `cmd` form
 pub trait ForeignValue {
     fn command(
         &mut self,

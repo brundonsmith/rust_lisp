@@ -155,6 +155,52 @@ these cannot be handled correctly by `lisp! {}`. So it's recommended that you
 use underscores in your identifiers instead, which the macro will be able to
 handle correctly. The built-in functions follow this convention.
 
+# The `ForeignValue` trait
+
+Sometimes if you're wanting to script an existing system, you don't want to
+convert your data to and from lisp-compatible values. This can be tedious, and
+more importantly super inefficient.
+
+If you have some type - say a struct - that you want to be able to work with
+directly from your lisp code, you can implement `ForeignValue` for it:
+
+```rust
+struct Foo {
+    some_prop: f32,
+}
+
+impl ForeignValue for Foo {
+    fn command(
+        &mut self,
+        env: Rc<RefCell<Env>>,
+        command: &str,
+        args: &[Value],
+    ) -> Result<Value, RuntimeError> {
+        match command {
+            "get_some_prop" => Ok(self.some_prop.into()),
+            "set_some_prop" => {
+                let new_value = require_typed_arg::<FloatType>("set_some_prop", args, 0)?;
+
+                self.some_prop = new_value;
+
+                Ok(new_value.into())
+            }
+            _ => Err(RuntimeError {
+                msg: format!("Unexpected command {}", command),
+            }),
+        }
+    }
+}
+```
+
+And then call out to it from your lisp code:
+
+```lisp
+(set x (cmd my_foo get_some_prop))
+
+(cmd my_foo set_some_prop 3.14)
+```
+
 # Included functionality
 
 Special forms: `define`, `set`, `defun`, `defmacro`, `lambda`, `quote`, `let`,
