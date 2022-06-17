@@ -15,6 +15,13 @@ fn eval_basic_expression() {
 }
 
 #[test]
+fn eval_nil() {
+    let result = eval_str("(== nil '())");
+
+    assert_eq!(result, Value::from(true));
+}
+
+#[test]
 fn eval_quote_1() {
     let result = eval_str("(quote \"stuff\")");
 
@@ -254,6 +261,17 @@ fn lambda_err() {
             msg: String::from("Expected list of arg names, but arg 0 is a F")
         })
     );
+}
+
+#[test]
+fn quote_comma() {
+    let result = eval_str(
+        "
+    '(+ 1 2 3 ,(+ 2 2))
+    ",
+    );
+
+    assert_eq!(result, lisp! { (+ 1 2 3 4) })
 }
 
 #[cfg(test)]

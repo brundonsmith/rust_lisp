@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 
 /// Evaluate a single Lisp expression in the context of a given environment.
 pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value, RuntimeError> {
-    eval_inner(env, expression, false, false)
+    eval_inner(env, expression, Context::new())
 }
 
 /// Evaluate a series of s-expressions. Each expression is evaluated in
@@ -12,20 +12,19 @@ pub fn eval_block(
     env: Rc<RefCell<Env>>,
     clauses: impl Iterator<Item = Value>,
 ) -> Result<Value, RuntimeError> {
-    eval_block_inner(env, clauses, false, false)
+    eval_block_inner(env, clauses, Context::new())
 }
 
 fn eval_block_inner(
     env: Rc<RefCell<Env>>,
     clauses: impl Iterator<Item = Value>,
-    found_tail: bool,
-    in_func: bool,
+    context: Context,
 ) -> Result<Value, RuntimeError> {
     let mut current_expr: Option<Value> = None;
 
     for clause in clauses {
         if let Some(expr) = current_expr {
-            match eval_inner(env.clone(), &expr, true, in_func) {
+            match eval_inner(env.clone(), &expr, context.found_tail(true)) {
                 Ok(_) => (),
                 Err(e) => {
                     return Err(e);
@@ -37,7 +36,7 @@ fn eval_block_inner(
     }
 
     if let Some(expr) = &current_expr {
-        eval_inner(env, expr, found_tail, in_func)
+        eval_inner(env, expr, context)
     } else {
         Err(RuntimeError {
             msg: "Unrecognized expression".to_owned(),
@@ -55,9 +54,26 @@ fn eval_block_inner(
 fn eval_inner(
     env: Rc<RefCell<Env>>,
     expression: &Value,
-    found_tail: bool,
-    in_func: bool,
+    context: Context,
 ) -> Result<Value, RuntimeError> {
+    if context.quoting {
+        match expression {
+            Value::List(list) if *list != List::NIL => match &list.car()? {
+                Value::Symbol(Symbol(keyword)) if keyword == "comma" => {
+                    // do nothing, handle it down below
+                }
+                _ => {
+                    return list
+                        .into_iter()
+                        .map(|el| eval_inner(env.clone(), &el, context))
+                        .collect::<Result<List, RuntimeError>>()
+                        .map(Value::List);
+                }
+            },
+            _ => return Ok(expression.clone()),
+        }
+    }
+
     match expression {
         // look up symbol
         Value::Symbol(symbol) => env.borrow().get(symbol).ok_or_else(|| RuntimeError {
@@ -68,6 +84,14 @@ fn eval_inner(
         Value::List(list) if *list != List::NIL => {
             match &list.car()? {
                 // special forms
+                Value::Symbol(Symbol(keyword)) if keyword == "comma" => {
+                    eval_inner(env, &list.cdr().car()?, context.quoting(false))
+                }
+
+                Value::Symbol(Symbol(keyword)) if keyword == "quote" => {
+                    eval_inner(env, &list.cdr().car()?, context.quoting(true))
+                }
+
                 Value::Symbol(Symbol(keyword)) if keyword == "define" || keyword == "set" => {
                     let cdr = list.cdr();
                     let symbol = &cdr.car()?;
@@ -79,7 +103,7 @@ fn eval_inner(
                         ),
                     })?;
                     let value_expr = &cdr.cdr().car()?;
-                    let value = eval_inner(env.clone(), value_expr, true, in_func)?;
+                    let value = eval_inner(env.clone(), value_expr, context.found_tail(true))?;
 
                     if keyword == "define" {
                         env.borrow_mut().define(symbol.clone(), value.clone());
@@ -126,8 +150,6 @@ fn eval_inner(
                     }))
                 }
 
-                Value::Symbol(Symbol(keyword)) if keyword == "quote" => Ok(list.cdr().car()?),
-
                 Value::Symbol(Symbol(keyword)) if keyword == "let" => {
                     let let_env = Rc::new(RefCell::new(Env::extend(env)));
                     let declarations = &list.cdr().car()?;
@@ -148,7 +170,7 @@ fn eval_inner(
                         })?;
                         let expr = &decl_cons.cdr().car()?;
 
-                        let result = eval_inner(let_env.clone(), expr, true, in_func)?;
+                        let result = eval_inner(let_env.clone(), expr, context.found_tail(true))?;
                         let_env.borrow_mut().define(symbol.clone(), result);
                     }
 
@@ -160,11 +182,11 @@ fn eval_inner(
                         ),
                     })?;
 
-                    eval_block_inner(let_env, body.into_iter(), found_tail, in_func)
+                    eval_block_inner(let_env, body.into_iter(), context)
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "begin" => {
-                    eval_block_inner(env, list.cdr().into_iter(), found_tail, in_func)
+                    eval_block_inner(env, list.cdr().into_iter(), context)
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "cond" => {
@@ -180,8 +202,8 @@ fn eval_inner(
                         let condition = &clause.car()?;
                         let then = &clause.cdr().car()?;
 
-                        if eval_inner(env.clone(), condition, true, in_func)?.into() {
-                            return eval_inner(env, then, found_tail, in_func);
+                        if eval_inner(env.clone(), condition, context.found_tail(true))?.into() {
+                            return eval_inner(env, then, context);
                         }
                     }
 
@@ -194,11 +216,11 @@ fn eval_inner(
                     let then_expr = &cdr.cdr().car()?;
                     let else_expr = cdr.cdr().cdr().car().ok();
 
-                    if eval_inner(env.clone(), condition, true, in_func)?.into() {
-                        Ok(eval_inner(env, then_expr, found_tail, in_func)?)
+                    if eval_inner(env.clone(), condition, context.found_tail(true))?.into() {
+                        Ok(eval_inner(env, then_expr, context)?)
                     } else {
                         else_expr
-                            .map(|expr| eval_inner(env, &expr, found_tail, in_func))
+                            .map(|expr| eval_inner(env, &expr, context))
                             .unwrap_or(Ok(Value::NIL))
                     }
                 }
@@ -210,12 +232,12 @@ fn eval_inner(
 
                     let truth = match keyword.as_str() {
                         "and" => {
-                            eval_inner(env.clone(), a, true, in_func)?.into()
-                                && eval_inner(env, b, true, in_func)?.into()
+                            eval_inner(env.clone(), a, context.found_tail(true))?.into()
+                                && eval_inner(env, b, context.found_tail(true))?.into()
                         }
                         "or" => {
-                            eval_inner(env.clone(), a, true, in_func)?.into()
-                                || eval_inner(env, b, true, in_func)?.into()
+                            eval_inner(env.clone(), a, context.found_tail(true))?.into()
+                                || eval_inner(env, b, context.found_tail(true))?.into()
                         }
                         _ => unreachable!("Only 'and' and 'or' are allowed by the match arm"),
                     };
@@ -225,14 +247,14 @@ fn eval_inner(
 
                 // function call
                 _ => {
-                    let func = eval_inner(env.clone(), &list.car()?, true, in_func)?;
+                    let func = eval_inner(env.clone(), &list.car()?, context.found_tail(true))?;
                     let args = list
                         .into_iter()
                         .skip(1)
-                        .map(|car| eval_inner(env.clone(), &car, true, in_func))
+                        .map(|car| eval_inner(env.clone(), &car, context.found_tail(true)))
                         .collect::<Result<Vec<Value>, RuntimeError>>()?;
 
-                    if !found_tail && in_func {
+                    if !context.found_tail && context.in_func {
                         Ok(Value::TailCall {
                             func: Rc::new(func),
                             args,
@@ -313,13 +335,57 @@ fn call_function(
             eval_block_inner(
                 Rc::new(RefCell::new(arg_env)),
                 clauses.into_iter(),
-                false,
-                true,
+                Context {
+                    found_tail: false,
+                    in_func: true,
+                    quoting: false,
+                },
             )
         }
 
         _ => Err(RuntimeError {
             msg: format!("{} is not callable", func),
         }),
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Context {
+    pub found_tail: bool,
+    pub in_func: bool,
+    pub quoting: bool,
+}
+
+impl Context {
+    pub fn new() -> Self {
+        Self {
+            found_tail: false,
+            in_func: false,
+            quoting: false,
+        }
+    }
+
+    pub fn found_tail(self, found_tail: bool) -> Self {
+        Self {
+            found_tail,
+            in_func: self.in_func,
+            quoting: self.quoting,
+        }
+    }
+
+    pub fn in_func(self, in_func: bool) -> Self {
+        Self {
+            found_tail: self.found_tail,
+            in_func,
+            quoting: self.quoting,
+        }
+    }
+
+    pub fn quoting(self, quoting: bool) -> Self {
+        Self {
+            found_tail: self.found_tail,
+            in_func: self.in_func,
+            quoting,
+        }
     }
 }

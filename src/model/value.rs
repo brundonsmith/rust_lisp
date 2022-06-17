@@ -25,12 +25,21 @@ pub enum Value {
     Symbol(Symbol),
     List(List),
     HashMap(Rc<RefCell<HashMap<Value, Value>>>),
+
+    /// A native Rust function that can be called from lisp code
     NativeFunc(NativeFunc),
+
+    /// A lisp function defined in lisp
     Lambda(Lambda),
-    TailCall { func: Rc<Value>, args: Vec<Value> },
+
+    /// A tail-call that has yet to be executed. Internal use only!
+    TailCall {
+        func: Rc<Value>,
+        args: Vec<Value>,
+    },
 }
 
-/// The trait bound for any Rust function that is to be called from lisp code
+/// A Rust function that is to be called from lisp code
 type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 
 impl Value {
