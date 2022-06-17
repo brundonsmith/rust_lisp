@@ -1,5 +1,5 @@
 use rust_lisp::{
-    model::{IntType, List, Symbol, Value},
+    model::{IntType, Value},
     parser::{parse, ParseError},
 };
 

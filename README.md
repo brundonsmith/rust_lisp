@@ -104,10 +104,9 @@ type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, 
 
 The first argument is the environment at the time and place of calling (closures
 are implemented as environment extensions). The second argument is the Vec of
-evaluated argument values. For convenience, utility functions
-(`require_parameter()`, `require_int_parameter()`, etc) have been provided for
-doing basic argument retrieval with error messaging. See
-`default_environment.rs` for examples.
+evaluated argument values. For convenience, utility functions (`require_arg()`,
+`require_int_parameter()`, etc) have been provided for doing basic argument
+retrieval with error messaging. See `default_environment.rs` for examples.
 
 # The `lisp!` macro
 

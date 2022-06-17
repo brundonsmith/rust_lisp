@@ -1,7 +1,5 @@
 /// A macro for more easily creating s-expressions from within Rust code
 /// ```ignore
-/// use rust_lisp::prelude::*;
-///
 /// fn parse_basic_expression() {
 ///     let ast1 = parse(
 ///         "
@@ -35,25 +33,25 @@ macro_rules! lisp {
 
     // Lists
     ( ( $($val:tt)* ) ) => {
-        Value::List([ $(lisp!{ $val }),* ].iter().collect::<List>())
+        $crate::model::Value::List([ $(lisp!{ $val }),* ].iter().collect::<$crate::model::List>())
     };
 
 
     // Symbols
     ($sym:ident) => {
-        Value::Symbol(Symbol(String::from(stringify!( $sym ))))
+        $crate::model::Value::Symbol($crate::model::Symbol(String::from(stringify!( $sym ))))
     };
     // these aren't valid Rust identifiers
-    ( + ) =>  { Value::Symbol(Symbol(String::from("+"))) };
-    ( - ) =>  { Value::Symbol(Symbol(String::from("-"))) };
-    ( * ) =>  { Value::Symbol(Symbol(String::from("*"))) };
-    ( / ) =>  { Value::Symbol(Symbol(String::from("/"))) };
-    ( == ) => { Value::Symbol(Symbol(String::from("=="))) };
-    ( != ) => { Value::Symbol(Symbol(String::from("!="))) };
-    ( < ) =>  { Value::Symbol(Symbol(String::from("<"))) };
-    ( <= ) => { Value::Symbol(Symbol(String::from("<="))) };
-    ( > ) =>  { Value::Symbol(Symbol(String::from(">"))) };
-    ( >= ) => { Value::Symbol(Symbol(String::from(">="))) };
+    ( + ) =>  { $crate::model::Value::Symbol($crate::model::Symbol(String::from("+"))) };
+    ( - ) =>  { $crate::model::Value::Symbol($crate::model::Symbol(String::from("-"))) };
+    ( * ) =>  { $crate::model::Value::Symbol($crate::model::Symbol(String::from("*"))) };
+    ( / ) =>  { $crate::model::Value::Symbol($crate::model::Symbol(String::from("/"))) };
+    ( == ) => { $crate::model::Value::Symbol($crate::model::Symbol(String::from("=="))) };
+    ( != ) => { $crate::model::Value::Symbol($crate::model::Symbol(String::from("!="))) };
+    ( < ) =>  { $crate::model::Value::Symbol($crate::model::Symbol(String::from("<"))) };
+    ( <= ) => { $crate::model::Value::Symbol($crate::model::Symbol(String::from("<="))) };
+    ( > ) =>  { $crate::model::Value::Symbol($crate::model::Symbol(String::from(">"))) };
+    ( >= ) => { $crate::model::Value::Symbol($crate::model::Symbol(String::from(">="))) };
 
 
     // Literals
@@ -62,26 +60,13 @@ macro_rules! lisp {
         // distinguish different kinds of literals,
         // so we just kick those out to be parsed
         // at runtime.
-        parse(stringify!($e)).next().unwrap().unwrap()
+        $crate::parser::parse(stringify!($e)).next().unwrap().unwrap()
     };
 
 
     // 🦀 Very special!
     // Special atoms
-    (Nil) => { Value::NIL };
-    (T) =>   { Value::T   };
-    (F) =>   { Value::F   };
-}
-
-/**
- * Prelude containing key exports, including everything needed by the lisp! { } macro
- */
-pub mod prelude {
-    pub use crate::{
-        default_environment::default_env,
-        interpreter::eval,
-        lisp,
-        model::{Env, List, RuntimeError, Symbol, Value},
-        parser::parse,
-    };
+    (Nil) => { $crate::model::Value::NIL };
+    (T) =>   { $crate::model::Value::T   };
+    (F) =>   { $crate::model::Value::F   };
 }

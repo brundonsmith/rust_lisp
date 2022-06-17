@@ -1,125 +1,89 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
-
-use crate::model::{FloatType, IntType, List, RuntimeError, Value};
-
-// 🦀 Poor thing, you went unused too?
-// pub struct ArgumentError {
-//   msg: String,
-//   index: usize,
-// }
+use crate::model::{
+    FloatType, ForeignValueRc, HashMapRc, IntType, List, RuntimeError, Symbol, Value,
+};
 
 /// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`
 /// and err if there isn't one.
-pub fn require_parameter<'a>(
-    func_name: &str,
+pub fn require_arg<'a>(
+    func_or_form_name: &str,
     args: &'a [Value],
     index: usize,
 ) -> Result<&'a Value, RuntimeError> {
     args.get(index).ok_or_else(|| RuntimeError {
         msg: format!(
-            "Function \"{}\" requires an argument {}",
-            func_name,
+            "\"{}\" requires an argument {}",
+            func_or_form_name,
             index + 1
         ),
     })
 }
 
-/// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`,
-/// assumed to be a `Value::Int()`, and return its inner i32. Err if any part
-/// of this fails.
-pub fn require_int_parameter(
-    func_name: &str,
-    args: &[Value],
-    index: usize,
-) -> Result<IntType, RuntimeError> {
-    require_parameter(func_name, args, index)?
-        .try_into()
-        .map_err(|_| RuntimeError {
-            msg: format!(
-                "Function \"{}\" requires argument {} to be an integer; got {}",
-                func_name,
-                index + 1,
-                args.get(index).unwrap_or(&Value::NIL)
-            ),
-        })
-}
-
-/// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`,
-/// assumed to be a `Value::Float()`, and return its inner f32. Err if any part
-/// of this fails.
-pub fn require_float_parameter(
-    func_name: &str,
-    args: &[Value],
-    index: usize,
-) -> Result<FloatType, RuntimeError> {
-    require_parameter(func_name, args, index)?
-        .try_into()
-        .map_err(|_| RuntimeError {
-            msg: format!(
-                "Function \"{}\" requires argument {} to be a float; got {}",
-                func_name,
-                index + 1,
-                args.get(index).unwrap_or(&Value::NIL)
-            ),
-        })
-}
-
-/// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`,
-/// assumed to be a `Value::String()`, and return a reference to its inner
-/// String. Err if any part of this fails.
-pub fn require_string_parameter<'a>(
-    func_name: &str,
+/// Given a `Value` assumed to be a `Value::List()`, and some type T, grab the
+/// item at `index` in the list and try converting it to type T. RuntimeError if
+/// the argument doesn't exist, or if it is the wrong type.
+pub fn require_typed_arg<'a, T>(
+    func_or_form_name: &str,
     args: &'a [Value],
     index: usize,
-) -> Result<&'a String, RuntimeError> {
-    require_parameter(func_name, args, index)?
+) -> Result<T, RuntimeError>
+where
+    T: TryFrom<&'a Value> + TypeName,
+{
+    require_arg(func_or_form_name, args, index)?
         .try_into()
         .map_err(|_| RuntimeError {
             msg: format!(
-                "Function \"{}\" requires argument {} to be a string; got {}",
-                func_name,
+                "\"{}\" requires argument {} to be a {}; got {}",
+                func_or_form_name,
                 index + 1,
+                T::get_name(),
                 args.get(index).unwrap_or(&Value::NIL)
             ),
         })
 }
 
-/// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`,
-/// assumed to be a `Value::List()` or a `Value::NIL`, erring if that isn't
-/// the case.
-pub fn require_list_parameter<'a>(
-    func_name: &str,
-    args: &'a [Value],
-    index: usize,
-) -> Result<&'a List, RuntimeError> {
-    require_parameter(func_name, args, index)?
-        .try_into()
-        .map_err(|_| RuntimeError {
-            msg: format!(
-                "Function \"{}\" requires argument {} to be a list; got {}",
-                func_name,
-                index + 1,
-                args.get(index).unwrap_or(&Value::NIL)
-            ),
-        })
+pub trait TypeName {
+    fn get_name() -> &'static str;
 }
 
-/// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`,
-/// assumed to be a `Value::HashMap()`, and return a reference to its inner
-/// HashMap. Err if any part of this fails.
-pub fn require_hash_parameter<'a>(
-    func_name: &str,
-    args: &'a [Value],
-    index: usize,
-) -> Result<&'a Rc<RefCell<HashMap<Value, Value>>>, RuntimeError> {
-    require_parameter(func_name, args, index)?
-        .try_into()
-        .map_err(|_| RuntimeError {
-            msg: format!(
-                "Function \"{}\" requires argument {} to be a hash map; got {}",
-                func_name,
-                index + 1,
-                args.get(index).unwrap_or(&Value::NIL)
-            ),
-        })
+impl TypeName for IntType {
+    fn get_name() -> &'static str {
+        "int"
+    }
+}
+
+impl TypeName for FloatType {
+    fn get_name() -> &'static str {
+        "float"
+    }
+}
+
+impl TypeName for &String {
+    fn get_name() -> &'static str {
+        "string"
+    }
+}
+
+impl TypeName for &Symbol {
+    fn get_name() -> &'static str {
+        "symbol"
+    }
+}
+
+impl TypeName for &List {
+    fn get_name() -> &'static str {
+        "list"
+    }
+}
+
+impl TypeName for &HashMapRc {
+    fn get_name() -> &'static str {
+        "hash map"
+    }
+}
+
+impl TypeName for &ForeignValueRc {
+    fn get_name() -> &'static str {
+        "foreign value"
+    }
 }

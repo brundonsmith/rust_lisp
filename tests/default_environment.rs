@@ -2,8 +2,7 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{IntType, List, Symbol, Value},
-    parser::parse,
+    model::{IntType, Value},
 };
 use std::{cell::RefCell, rc::Rc};
 

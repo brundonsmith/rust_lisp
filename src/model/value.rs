@@ -1,4 +1,3 @@
-use crate::lisp;
 use cfg_if::cfg_if;
 use std::rc::Rc;
 use std::{cell::RefCell, cmp::Ordering};
@@ -12,6 +11,7 @@ cfg_if! {
 }
 
 use super::{Env, FloatType, IntType, Lambda, List, RuntimeError, Symbol};
+use crate::lisp;
 
 /// `Value` encompasses all possible Lisp values, including atoms, lists, and
 /// others.
@@ -24,7 +24,7 @@ pub enum Value {
     String(String),
     Symbol(Symbol),
     List(List),
-    HashMap(Rc<RefCell<HashMap<Value, Value>>>),
+    HashMap(HashMapRc),
 
     /// A native Rust function that can be called from lisp code
     NativeFunc(NativeFunc),
@@ -32,7 +32,12 @@ pub enum Value {
     /// A lisp function defined in lisp
     Lambda(Lambda),
 
+    /// A lisp macro defined in lisp
     Macro(Lambda),
+
+    /// A reference to a foreign value (struct, enum, etc) implementing the
+    /// ForeignValue trait, which can receive commands via lisp code
+    Foreign(ForeignValueRc),
 
     /// A tail-call that has yet to be executed. Internal use only!
     TailCall {
@@ -41,8 +46,23 @@ pub enum Value {
     },
 }
 
+pub trait ForeignValue {
+    fn command(
+        &mut self,
+        env: Rc<RefCell<Env>>,
+        command: &str,
+        args: &[Value],
+    ) -> Result<Value, RuntimeError>;
+}
+
 /// A Rust function that is to be called from lisp code
-type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
+pub type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &[Value]) -> Result<Value, RuntimeError>;
+
+/// Alias for the contents of Value::HashMap
+pub type HashMapRc = Rc<RefCell<HashMap<Value, Value>>>;
+
+/// Alias for the contents of Value::Foreign
+pub type ForeignValueRc = Rc<RefCell<dyn ForeignValue>>;
 
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
@@ -61,6 +81,7 @@ impl Value {
             Value::Int(_) => "integer",
             Value::Float(_) => "float",
             Value::Symbol(_) => "symbol",
+            Value::Foreign(_) => "foreign value",
             Value::TailCall { func: _, args: _ } => "tail call",
         }
     }
@@ -201,7 +222,7 @@ impl From<Lambda> for Value {
     }
 }
 
-impl<'a> TryFrom<&'a Value> for &'a Rc<RefCell<HashMap<Value, Value>>> {
+impl<'a> TryFrom<&'a Value> for &'a HashMapRc {
     type Error = RuntimeError;
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
@@ -220,9 +241,28 @@ impl From<HashMap<Value, Value>> for Value {
     }
 }
 
-impl From<Rc<RefCell<HashMap<Value, Value>>>> for Value {
-    fn from(i: Rc<RefCell<HashMap<Value, Value>>>) -> Self {
+impl From<HashMapRc> for Value {
+    fn from(i: HashMapRc) -> Self {
         Value::HashMap(i)
+    }
+}
+
+impl<'a> TryFrom<&'a Value> for &'a ForeignValueRc {
+    type Error = RuntimeError;
+
+    fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Foreign(n) => Ok(n),
+            _ => Err(RuntimeError {
+                msg: format!("Expected foreign value, got a {}", value),
+            }),
+        }
+    }
+}
+
+impl From<ForeignValueRc> for Value {
+    fn from(i: ForeignValueRc) -> Self {
+        Value::Foreign(i)
     }
 }
 
@@ -252,6 +292,7 @@ impl std::fmt::Display for Value {
             Value::Int(n) => write!(formatter, "{}", n),
             Value::Float(n) => write!(formatter, "{}", n),
             Value::Symbol(Symbol(n)) => write!(formatter, "{}", n),
+            Value::Foreign(_) => write!(formatter, "<foreign_value>"),
             Value::TailCall { func, args } => {
                 write!(formatter, "<tail-call: {:?} with {:?} >", func, args)
             }
@@ -274,6 +315,7 @@ impl Debug for Value {
             Value::Int(n) => write!(formatter, "Value::Int({:?})", n),
             Value::Float(n) => write!(formatter, "Value::Float({:?})", n),
             Value::Symbol(Symbol(n)) => write!(formatter, "Value::Symbol({:?})", n),
+            Value::Foreign(_) => write!(formatter, "<foreign_value>"),
             Value::TailCall { func, args } => write!(
                 formatter,
                 "Value::TailCall {{ func: {:?}, args: {:?} }}",
@@ -306,7 +348,7 @@ impl PartialEq for Value {
                 _ => false,
             },
             Value::HashMap(n) => match other {
-                Value::HashMap(o) => n == o,
+                Value::HashMap(o) => Rc::ptr_eq(n, o),
                 _ => false,
             },
             Value::Int(n) => match other {
@@ -319,6 +361,10 @@ impl PartialEq for Value {
             },
             Value::Symbol(Symbol(n)) => match other {
                 Value::Symbol(Symbol(o)) => n == o,
+                _ => false,
+            },
+            Value::Foreign(n) => match other {
+                Value::Foreign(o) => Rc::ptr_eq(n, o),
                 _ => false,
             },
             Value::TailCall { func, args } => match other {
@@ -419,6 +465,7 @@ impl PartialOrd for Value {
             Value::Macro(_) => None,
             Value::List(_) => None,
             Value::HashMap(_) => None,
+            Value::Foreign(_) => None,
             Value::TailCall { func: _, args: _ } => None,
         }
     }
@@ -448,6 +495,7 @@ impl std::hash::Hash for Value {
             Value::NativeFunc(x) => std::ptr::hash(x, state),
             Value::Lambda(x) => x.hash(state),
             Value::Macro(x) => x.hash(state),
+            Value::Foreign(x) => std::ptr::hash(x, state),
             Value::TailCall { func, args } => {
                 func.hash(state);
                 args.hash(state);

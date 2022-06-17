@@ -1,4 +1,7 @@
-use crate::model::{Env, Lambda, List, RuntimeError, Symbol, Value};
+use crate::{
+    model::{Env, ForeignValueRc, Lambda, List, RuntimeError, Symbol, Value},
+    utils::{require_arg, require_typed_arg},
+};
 use std::{cell::RefCell, rc::Rc};
 
 /// Evaluate a single Lisp expression in the context of a given environment.
@@ -93,16 +96,11 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "define" || keyword == "set" => {
-                    let cdr = list.cdr();
-                    let symbol = &cdr.car()?;
-                    let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
-                        msg: format!(
-                            "Symbol required for definition; received \"{}\", which is a {}",
-                            symbol,
-                            symbol.type_name()
-                        ),
-                    })?;
-                    let value_expr = &cdr.cdr().car()?;
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let symbol = require_typed_arg::<&Symbol>(keyword, args, 0)?;
+                    let value_expr = require_arg(keyword, args, 1)?;
+
                     let value = eval_inner(env.clone(), value_expr, context.found_tail(true))?;
 
                     if keyword == "define" {
@@ -115,17 +113,12 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "defmacro" => {
-                    let cdr = list.cdr();
-                    let symbol = &cdr.car()?;
-                    let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
-                        msg: format!(
-                            "Macro name must by a symbol; received \"{}\", which is a {}",
-                            symbol,
-                            symbol.type_name()
-                        ),
-                    })?;
-                    let argnames = value_to_argnames(cdr.cdr().car()?)?;
-                    let body = Rc::new(Value::List(cdr.cdr().cdr()));
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let symbol = require_typed_arg::<&Symbol>(keyword, args, 0)?;
+                    let argnames_list = require_typed_arg::<&List>(keyword, args, 1)?;
+                    let argnames = value_to_argnames(argnames_list.clone())?;
+                    let body = Rc::new(Value::List(list.cdr().cdr().cdr()));
 
                     let lambda = Value::Macro(Lambda {
                         closure: env.clone(),
@@ -139,17 +132,12 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "defun" => {
-                    let cdr = list.cdr();
-                    let symbol = &cdr.car()?;
-                    let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
-                        msg: format!(
-                            "Function name must by a symbol; received \"{}\", which is a {}",
-                            symbol,
-                            symbol.type_name()
-                        ),
-                    })?;
-                    let argnames = value_to_argnames(cdr.cdr().car()?)?;
-                    let body = Rc::new(Value::List(cdr.cdr().cdr()));
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let symbol = require_typed_arg::<&Symbol>(keyword, args, 0)?;
+                    let argnames_list = require_typed_arg::<&List>(keyword, args, 1)?;
+                    let argnames = value_to_argnames(argnames_list.clone())?;
+                    let body = Rc::new(Value::List(list.cdr().cdr().cdr()));
 
                     let lambda = Value::Lambda(Lambda {
                         closure: env.clone(),
@@ -163,9 +151,11 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "lambda" => {
-                    let cdr = list.cdr();
-                    let argnames = value_to_argnames(cdr.car()?)?;
-                    let body = Rc::new(Value::List(cdr.cdr()));
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let argnames_list = require_typed_arg::<&List>(keyword, args, 0)?;
+                    let argnames = value_to_argnames(argnames_list.clone())?;
+                    let body = Rc::new(Value::List(list.cdr().cdr()));
 
                     Ok(Value::Lambda(Lambda {
                         closure: env,
@@ -176,11 +166,10 @@ fn eval_inner(
 
                 Value::Symbol(Symbol(keyword)) if keyword == "let" => {
                     let let_env = Rc::new(RefCell::new(Env::extend(env)));
-                    let declarations = &list.cdr().car()?;
-                    let declarations: &List =
-                        declarations.try_into().map_err(|_| RuntimeError {
-                            msg: "Expected list of declarations for let form".to_owned(),
-                        })?;
+
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let declarations = require_typed_arg::<&List>(keyword, args, 0)?;
 
                     for decl in declarations.into_iter() {
                         let decl = &decl;
@@ -235,13 +224,14 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "if" => {
-                    let cdr = list.cdr();
-                    let condition = &cdr.car()?;
-                    let then_expr = &cdr.cdr().car()?;
-                    let else_expr = cdr.cdr().cdr().car().ok();
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let condition = require_arg(keyword, args, 0)?;
+                    let then_expr = require_arg(keyword, args, 1)?;
+                    let else_expr = require_arg(keyword, args, 2).ok();
 
                     if eval_inner(env.clone(), condition, context.found_tail(true))?.into() {
-                        Ok(eval_inner(env, then_expr, context)?)
+                        eval_inner(env, then_expr, context)
                     } else {
                         else_expr
                             .map(|expr| eval_inner(env, &expr, context))
@@ -250,9 +240,10 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "and" || keyword == "or" => {
-                    let cdr = list.cdr();
-                    let a = &cdr.car()?;
-                    let b = &cdr.cdr().car()?;
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let a = require_arg(keyword, args, 0)?;
+                    let b = require_arg(keyword, args, 1)?;
 
                     let truth = match keyword.as_str() {
                         "and" => {
@@ -263,10 +254,23 @@ fn eval_inner(
                             eval_inner(env.clone(), a, context.found_tail(true))?.into()
                                 || eval_inner(env, b, context.found_tail(true))?.into()
                         }
-                        _ => unreachable!("Only 'and' and 'or' are allowed by the match arm"),
+                        _ => unreachable!("`keyword` can only be 'and' or 'or' at this point"),
                     };
 
                     Ok(Value::from(truth))
+                }
+
+                Value::Symbol(Symbol(keyword)) if keyword == "cmd" => {
+                    let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+
+                    let taret = require_arg(keyword, args, 0)?;
+                    let target = &eval_inner(env.clone(), taret, context)?;
+                    let target: &ForeignValueRc = target.try_into()?;
+                    let mut target_borrowed = target.borrow_mut();
+                    let command = require_typed_arg::<&Symbol>(keyword, args, 1)?;
+                    let command_args = &args[2..];
+
+                    target_borrowed.command(env, &command.0, command_args)
                 }
 
                 // function call or macro expand
@@ -312,27 +316,21 @@ fn eval_inner(
 }
 // 🦀 Boo! Did I scare ya? Haha!
 
-fn value_to_argnames(argnames: Value) -> Result<Vec<Symbol>, RuntimeError> {
-    if let Value::List(argnames) = argnames {
-        argnames
-            .into_iter()
-            .enumerate()
-            .map(|(index, arg)| match arg {
-                Value::Symbol(s) => Ok(s),
-                _ => Err(RuntimeError {
-                    msg: format!(
-                        "Expected list of arg names, but arg {} is a {}",
-                        index,
-                        arg.type_name()
-                    ),
-                }),
-            })
-            .collect()
-    } else {
-        Err(RuntimeError {
-            msg: format!("Expected list of arg names, received \"{}\"", argnames),
+fn value_to_argnames(argnames: List) -> Result<Vec<Symbol>, RuntimeError> {
+    argnames
+        .into_iter()
+        .enumerate()
+        .map(|(index, arg)| match arg {
+            Value::Symbol(s) => Ok(s),
+            _ => Err(RuntimeError {
+                msg: format!(
+                    "Expected list of arg names, but arg {} is a {}",
+                    index,
+                    arg.type_name()
+                ),
+            }),
         })
-    }
+        .collect()
 }
 
 /// Calling a function is separated from the main `eval_inner()` function
@@ -411,13 +409,13 @@ impl Context {
         }
     }
 
-    pub fn in_func(self, in_func: bool) -> Self {
-        Self {
-            found_tail: self.found_tail,
-            in_func,
-            quoting: self.quoting,
-        }
-    }
+    // pub fn in_func(self, in_func: bool) -> Self {
+    //     Self {
+    //         found_tail: self.found_tail,
+    //         in_func,
+    //         quoting: self.quoting,
+    //     }
+    // }
 
     pub fn quoting(self, quoting: bool) -> Self {
         Self {

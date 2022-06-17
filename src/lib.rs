@@ -10,7 +10,6 @@ pub use default_environment::default_env;
 
 #[macro_use]
 mod macros;
-pub use macros::prelude;
 
 use model::Env;
 use std::io::{self, prelude::*};

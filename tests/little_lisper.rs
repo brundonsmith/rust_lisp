@@ -2,9 +2,8 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{IntType, List, Value},
+    model::{IntType, RuntimeError, Value},
     parser::parse,
-    prelude::RuntimeError,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -52,7 +51,7 @@ fn six() {
     assert_eq!(
         eval_str("(cons (list 1 2 3) 4)"),
         Err(RuntimeError {
-            msg: "Function \"cons\" requires argument 2 to be a list; got 4".to_owned()
+            msg: "\"cons\" requires argument 2 to be a list; got 4".to_owned()
         })
     );
 }
