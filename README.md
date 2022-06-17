@@ -169,5 +169,6 @@ Functions (in `default_env()`): `print`, `is_null`, `is_number`, `is_symbol`,
 
 Other features:
 
-- Single-tick quoting
+- Quoting with comma-escapes
+- Lisp macros
 - Tail-call optimization
