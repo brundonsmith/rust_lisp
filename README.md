@@ -158,8 +158,8 @@ handle correctly. The built-in functions follow this convention.
 
 # Included functionality
 
-Special forms: `define`, `set`, `defun`, `lambda`, `quote`, `let`, `begin`,
-`cond`, `if`, `and`, `or`
+Special forms: `define`, `set`, `defun`, `defmacro`, `lambda`, `quote`, `let`,
+`begin`, `cond`, `if`, `and`, `or`
 
 Functions (in `default_env()`): `print`, `is_null`, `is_number`, `is_symbol`,
 `is_boolean`, `is_procedure`, `is_pair`, `car`, `cdr`, `cons`, `list`, `nth`,
