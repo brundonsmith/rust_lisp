@@ -19,7 +19,7 @@ and `num-bigint` is entirely opt-in (at build time)
 
 ```rust
 [dependencies]
-rust_lisp = "0.14.0"
+rust_lisp = "0.15.0"
 ```
 
 ```rust
