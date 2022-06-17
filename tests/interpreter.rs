@@ -274,6 +274,21 @@ fn quote_comma() {
     assert_eq!(result, lisp! { (+ 1 2 3 4) })
 }
 
+#[test]
+fn defmacro() {
+    let result = eval_str(
+        "
+    (begin
+      (defmacro foo (x)
+        '(list ,x ,x ,x))
+      
+      (foo 3))
+  ",
+    );
+
+    assert_eq!(result, lisp! { (3 3 3) })
+}
+
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();

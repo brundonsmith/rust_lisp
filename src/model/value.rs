@@ -32,6 +32,8 @@ pub enum Value {
     /// A lisp function defined in lisp
     Lambda(Lambda),
 
+    Macro(Lambda),
+
     /// A tail-call that has yet to be executed. Internal use only!
     TailCall {
         func: Rc<Value>,
@@ -49,6 +51,7 @@ impl Value {
         match self {
             Value::NativeFunc(_) => "function",
             Value::Lambda(_) => "function",
+            Value::Macro(_) => "macro",
             Value::True => "T",
             Value::False => "F",
             Value::String(_) => "string",
@@ -229,19 +232,8 @@ impl std::fmt::Display for Value {
             Value::NativeFunc(_) => write!(formatter, "<native_function>"),
             Value::True => write!(formatter, "T"),
             Value::False => write!(formatter, "F"),
-            Value::Lambda(n) => {
-                let body_str = format!("{}", &n.body);
-                return write!(
-                    formatter,
-                    "<func:(lambda ({}) {})>",
-                    n.argnames
-                        .iter()
-                        .map(|sym| sym.0.as_str())
-                        .collect::<Vec<&str>>()
-                        .join(" "),
-                    &body_str[1..body_str.chars().count() - 1]
-                );
-            }
+            Value::Lambda(n) => write!(formatter, "<func:(lambda {})>", n),
+            Value::Macro(n) => write!(formatter, "(macro {})", n),
             Value::String(n) => write!(formatter, "\"{}\"", n),
             Value::List(n) => write!(formatter, "{}", n),
             Value::HashMap(n) => {
@@ -275,6 +267,7 @@ impl Debug for Value {
             Value::True => write!(formatter, "Value::True"),
             Value::False => write!(formatter, "Value::False"),
             Value::Lambda(n) => write!(formatter, "Value::Lambda({:?})", n),
+            Value::Macro(n) => write!(formatter, "Value::Macro({:?})", n),
             Value::String(n) => write!(formatter, "Value::String({:?})", n),
             Value::List(n) => write!(formatter, "Value::List({:?})", n),
             Value::HashMap(n) => write!(formatter, "Value::HashMap({:?})", n),
@@ -298,6 +291,10 @@ impl PartialEq for Value {
             Value::False => matches!(other, &Value::False),
             Value::Lambda(n) => match other {
                 Value::Lambda(o) => n == o,
+                _ => false,
+            },
+            Value::Macro(n) => match other {
+                Value::Macro(o) => n == o,
                 _ => false,
             },
             Value::String(n) => match other {
@@ -419,6 +416,7 @@ impl PartialOrd for Value {
             },
             Value::NativeFunc(_) => None,
             Value::Lambda(_) => None,
+            Value::Macro(_) => None,
             Value::List(_) => None,
             Value::HashMap(_) => None,
             Value::TailCall { func: _, args: _ } => None,
@@ -449,6 +447,7 @@ impl std::hash::Hash for Value {
             Value::HashMap(x) => x.as_ptr().hash(state),
             Value::NativeFunc(x) => std::ptr::hash(x, state),
             Value::Lambda(x) => x.hash(state),
+            Value::Macro(x) => x.hash(state),
             Value::TailCall { func, args } => {
                 func.hash(state);
                 args.hash(state);

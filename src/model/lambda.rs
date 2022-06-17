@@ -27,3 +27,20 @@ impl std::hash::Hash for Lambda {
         self.body.hash(state);
     }
 }
+
+impl std::fmt::Display for Lambda {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let body_str = format!("{}", &self.body);
+
+        return write!(
+            f,
+            "({}) {}",
+            self.argnames
+                .iter()
+                .map(|sym| sym.0.as_str())
+                .collect::<Vec<&str>>()
+                .join(" "),
+            &body_str[1..body_str.chars().count() - 1]
+        );
+    }
+}

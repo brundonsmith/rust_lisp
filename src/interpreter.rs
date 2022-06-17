@@ -114,6 +114,30 @@ fn eval_inner(
                     Ok(value)
                 }
 
+                Value::Symbol(Symbol(keyword)) if keyword == "defmacro" => {
+                    let cdr = list.cdr();
+                    let symbol = &cdr.car()?;
+                    let symbol: &Symbol = symbol.try_into().map_err(|_| RuntimeError {
+                        msg: format!(
+                            "Macro name must by a symbol; received \"{}\", which is a {}",
+                            symbol,
+                            symbol.type_name()
+                        ),
+                    })?;
+                    let argnames = value_to_argnames(cdr.cdr().car()?)?;
+                    let body = Rc::new(Value::List(cdr.cdr().cdr()));
+
+                    let lambda = Value::Macro(Lambda {
+                        closure: env.clone(),
+                        argnames,
+                        body,
+                    });
+
+                    env.borrow_mut().define(symbol.clone(), lambda);
+
+                    Ok(Value::NIL)
+                }
+
                 Value::Symbol(Symbol(keyword)) if keyword == "defun" => {
                     let cdr = list.cdr();
                     let symbol = &cdr.car()?;
@@ -245,28 +269,38 @@ fn eval_inner(
                     Ok(Value::from(truth))
                 }
 
-                // function call
+                // function call or macro expand
                 _ => {
-                    let func = eval_inner(env.clone(), &list.car()?, context.found_tail(true))?;
-                    let args = list
-                        .into_iter()
-                        .skip(1)
-                        .map(|car| eval_inner(env.clone(), &car, context.found_tail(true)))
-                        .collect::<Result<Vec<Value>, RuntimeError>>()?;
+                    let func_or_macro =
+                        eval_inner(env.clone(), &list.car()?, context.found_tail(true))?;
 
-                    if !context.found_tail && context.in_func {
-                        Ok(Value::TailCall {
-                            func: Rc::new(func),
-                            args,
-                        })
+                    if matches!(func_or_macro, Value::Macro(_)) {
+                        let args = list.into_iter().skip(1).collect::<Vec<Value>>();
+
+                        let expanded = call_function_or_macro(env.clone(), &func_or_macro, args)?;
+
+                        eval_inner(env.clone(), &expanded, Context::new())
                     } else {
-                        let mut res = call_function(env.clone(), &func, args);
+                        let args = list
+                            .into_iter()
+                            .skip(1)
+                            .map(|car| eval_inner(env.clone(), &car, context.found_tail(true)))
+                            .collect::<Result<Vec<Value>, RuntimeError>>()?;
 
-                        while let Ok(Value::TailCall { func, args }) = res {
-                            res = call_function(env.clone(), &func, args);
+                        if !context.found_tail && context.in_func {
+                            Ok(Value::TailCall {
+                                func: Rc::new(func_or_macro),
+                                args,
+                            })
+                        } else {
+                            let mut res = call_function_or_macro(env.clone(), &func_or_macro, args);
+
+                            while let Ok(Value::TailCall { func, args }) = res {
+                                res = call_function_or_macro(env.clone(), &func, args);
+                            }
+
+                            res
                         }
-
-                        res
                     }
                 }
             }
@@ -304,20 +338,24 @@ fn value_to_argnames(argnames: Value) -> Result<Vec<Symbol>, RuntimeError> {
 /// Calling a function is separated from the main `eval_inner()` function
 /// so that tail calls can be evaluated without just returning themselves
 /// as-is as a tail-call.
-fn call_function(
+fn call_function_or_macro(
     env: Rc<RefCell<Env>>,
     func: &Value,
     args: Vec<Value>,
 ) -> Result<Value, RuntimeError> {
-    match func {
-        // call native function
-        Value::NativeFunc(func) => func(env, &args),
+    if let Value::NativeFunc(func) = func {
+        func(env, &args)
+    } else {
+        let lambda = match func {
+            Value::Lambda(lamb) => Some(lamb),
+            Value::Macro(lamb) => Some(lamb),
+            _ => None,
+        };
 
-        // call lambda function
-        Value::Lambda(lamb) => {
+        if let Some(lambda) = lambda {
             // bind args
-            let mut arg_env = Env::extend(lamb.closure.clone());
-            for (index, arg_name) in lamb.argnames.iter().enumerate() {
+            let mut arg_env = Env::extend(lambda.closure.clone());
+            for (index, arg_name) in lambda.argnames.iter().enumerate() {
                 if arg_name.0 == "..." {
                     // rest parameters
                     arg_env.define(
@@ -331,7 +369,7 @@ fn call_function(
             }
 
             // evaluate each line of body
-            let clauses: &List = lamb.body.as_ref().try_into()?;
+            let clauses: &List = lambda.body.as_ref().try_into()?;
             eval_block_inner(
                 Rc::new(RefCell::new(arg_env)),
                 clauses.into_iter(),
@@ -341,11 +379,11 @@ fn call_function(
                     quoting: false,
                 },
             )
+        } else {
+            Err(RuntimeError {
+                msg: format!("{} is not callable", func),
+            })
         }
-
-        _ => Err(RuntimeError {
-            msg: format!("{} is not callable", func),
-        }),
     }
 }
 
