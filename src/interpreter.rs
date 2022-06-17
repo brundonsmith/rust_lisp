@@ -263,12 +263,15 @@ fn eval_inner(
                 Value::Symbol(Symbol(keyword)) if keyword == "cmd" => {
                     let args = &list.cdr().into_iter().collect::<Vec<Value>>();
 
-                    let taret = require_arg(keyword, args, 0)?;
-                    let target = &eval_inner(env.clone(), taret, context)?;
+                    let target = require_arg(keyword, args, 0)?;
+                    let target = &eval_inner(env.clone(), target, context)?;
                     let target: &ForeignValueRc = target.try_into()?;
                     let mut target_borrowed = target.borrow_mut();
                     let command = require_typed_arg::<&Symbol>(keyword, args, 1)?;
-                    let command_args = &args[2..];
+                    let command_args = &args[2..]
+                        .iter()
+                        .map(|arg| eval_inner(env.clone(), arg, context))
+                        .collect::<Result<Vec<Value>, RuntimeError>>()?;
 
                     target_borrowed.command(env, &command.0, command_args)
                 }
