@@ -55,7 +55,7 @@ value. Most of these are trivial, but `Value::List` is not. It holds a recursive
 `List` data structure which functions internally like a linked-list.
 `into_iter()` and `from_iter()` have been implemented for `List`, and there is
 also a `lisp!` macro (see below) which makes working with Lists, in particular,
-much more conventient.
+much more convenient.
 
 `Value` does not implement `Copy` because of cases like `Value::List`, so if you
 read the source you'll see lots of `value.clone()`. This almost always amounts
