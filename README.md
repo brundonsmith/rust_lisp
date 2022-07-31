@@ -25,22 +25,24 @@ rust_lisp = "0.15.0"
 ```rust
 use std::{cell::RefCell, rc::Rc};
 
-use rust_lisp::prelude::*;
+use rust_lisp::default_env;
+use rust_lisp::parser::parse;
+use rust_lisp::interpreter::eval;
 
 fn main() {
 
-  // create a base environment
-  let env = Rc::new(RefCell::new(default_env()));
+    // create a base environment
+    let env = Rc::new(RefCell::new(default_env()));
 
-  // parse into an iterator of syntax trees (one for each root)
-  let mut ast_iter = parse("(+ \"Hello \" \"world!\")");
-  let first_expression = ast_iter.next().unwrap().unwrap();
+    // parse into an iterator of syntax trees (one for each root)
+    let mut ast_iter = parse("(+ \"Hello \" \"world!\")");
+    let first_expression = ast_iter.next().unwrap().unwrap();
 
-  // evaluate
-  let evaluation_result = eval(env.clone(), &first_expression).unwrap();
+    // evaluate
+    let evaluation_result = eval(env.clone(), &first_expression).unwrap();
 
-  // use result
-  println!("{}", &evaluation_result);
+    // use result
+    println!("{}", &evaluation_result);
 }
 ```
 
