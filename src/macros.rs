@@ -37,6 +37,16 @@ macro_rules! lisp {
     };
 
 
+    // 🦀 Very special!
+    // Special atoms
+    (nil) => { $crate::model::Value::NIL   };
+    (NIL) => { $crate::model::Value::NIL   };
+    (t) =>   { $crate::model::Value::True  };
+    (T) =>   { $crate::model::Value::True  };
+    (f) =>   { $crate::model::Value::False };
+    (F) =>   { $crate::model::Value::False };
+
+
     // Symbols
     ($sym:ident) => {
         $crate::model::Value::Symbol($crate::model::Symbol(String::from(stringify!( $sym ))))
@@ -62,11 +72,4 @@ macro_rules! lisp {
         // at runtime.
         $crate::parser::parse(stringify!($e)).next().unwrap().unwrap()
     };
-
-
-    // 🦀 Very special!
-    // Special atoms
-    (Nil) => { $crate::model::Value::NIL };
-    (T) =>   { $crate::model::Value::T   };
-    (F) =>   { $crate::model::Value::F   };
 }
