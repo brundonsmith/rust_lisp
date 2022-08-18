@@ -242,22 +242,21 @@ fn eval_inner(
                 Value::Symbol(Symbol(keyword)) if keyword == "and" || keyword == "or" => {
                     let args = &list.cdr().into_iter().collect::<Vec<Value>>();
 
-                    let a = require_arg(keyword, args, 0)?;
-                    let b = require_arg(keyword, args, 1)?;
+                    let mut last_result: Option<Value> = None;
+                    for arg in args {
+                        let result = eval_inner(env.clone(), arg, context.found_tail(true))?;
+                        let truthy: bool = (&result).into();
 
-                    let truth = match keyword.as_str() {
-                        "and" => {
-                            eval_inner(env.clone(), a, context.found_tail(true))?.into()
-                                && eval_inner(env, b, context.found_tail(true))?.into()
+                        if (keyword.as_str() == "or") == truthy {
+                            return Ok(result);
                         }
-                        "or" => {
-                            eval_inner(env.clone(), a, context.found_tail(true))?.into()
-                                || eval_inner(env, b, context.found_tail(true))?.into()
-                        }
-                        _ => unreachable!("`keyword` can only be 'and' or 'or' at this point"),
-                    };
 
-                    Ok(Value::from(truth))
+                        last_result = Some(result);
+                    }
+
+                    last_result.map(Ok).unwrap_or(Err(RuntimeError {
+                        msg: format!("\"{}\" requires at least one argument", keyword),
+                    }))
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "cmd" => {

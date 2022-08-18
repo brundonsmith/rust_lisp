@@ -289,6 +289,40 @@ fn defmacro() {
     assert_eq!(result, lisp! { (3 3 3) })
 }
 
+#[test]
+fn or_expressions() {
+    let result = eval_str(
+        "
+    '(
+      ,(or T)
+      ,(or F T)
+      ,(or F F T)
+
+      ,(or F)
+      ,(or F F)
+      ,(or F F F))",
+    );
+
+    assert_eq!(result, lisp! { (T T T F F F) })
+}
+
+#[test]
+fn and_expressions() {
+    let result = eval_str(
+        "
+    '(
+      ,(and F)
+      ,(and T F)
+      ,(and T T F)
+
+      ,(and T)
+      ,(and T T)
+      ,(and T T T))",
+    );
+
+    assert_eq!(result, lisp! { (F F F T T T) })
+}
+
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();
