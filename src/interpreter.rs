@@ -254,9 +254,12 @@ fn eval_inner(
                         last_result = Some(result);
                     }
 
-                    last_result.map(Ok).unwrap_or(Err(RuntimeError {
-                        msg: format!("\"{}\" requires at least one argument", keyword),
-                    }))
+                    Ok(if let Some(last_result) = last_result {
+                        last_result
+                    } else {
+                        // there were zero arguments
+                        (!is_or).into()
+                    })
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "cmd" => {

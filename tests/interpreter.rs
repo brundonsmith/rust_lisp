@@ -294,6 +294,7 @@ fn or_expressions() {
     let result = eval_str(
         "
     '(
+      ,(or)
       ,(or T)
       ,(or F T)
       ,(or F F T)
@@ -303,7 +304,7 @@ fn or_expressions() {
       ,(or F F F))",
     );
 
-    assert_eq!(result, lisp! { (T T T F F F) })
+    assert_eq!(result, lisp! { (F T T T F F F) })
 }
 
 #[test]
@@ -311,6 +312,7 @@ fn and_expressions() {
     let result = eval_str(
         "
     '(
+      ,(and)
       ,(and F)
       ,(and T F)
       ,(and T T F)
@@ -320,7 +322,24 @@ fn and_expressions() {
       ,(and T T T))",
     );
 
-    assert_eq!(result, lisp! { (F F F T T T) })
+    assert_eq!(result, lisp! { (T F F F T T T) })
+}
+
+#[test]
+fn short_circuit() {
+    let result = eval_str(
+        "
+    (begin
+      (define foo 0)
+
+      (or
+        T
+        (set foo 12))
+
+      foo)",
+    );
+
+    assert_eq!(result, lisp! { 0 })
 }
 
 #[cfg(test)]
