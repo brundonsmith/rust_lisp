@@ -241,13 +241,14 @@ fn eval_inner(
 
                 Value::Symbol(Symbol(keyword)) if keyword == "and" || keyword == "or" => {
                     let args = &list.cdr().into_iter().collect::<Vec<Value>>();
+                    let is_or = keyword.as_str() == "or";
 
                     let mut last_result: Option<Value> = None;
                     for arg in args {
                         let result = eval_inner(env.clone(), arg, context.found_tail(true))?;
                         let truthy: bool = (&result).into();
 
-                        if (keyword.as_str() == "or") == truthy {
+                        if is_or == truthy {
                             return Ok(result);
                         }
 
