@@ -422,6 +422,8 @@ impl PartialOrd for Value {
                     cfg_if! {
                         if #[cfg(feature = "bigint")] {
                             n.partial_cmp(&BigInt::from(o.round() as i64))
+                        } else if #[cfg(feature = "libm")] {
+                            n.partial_cmp(&(libm::roundf(*o) as IntType))
                         } else {
                             n.partial_cmp(&(o.round() as IntType))
                         }
