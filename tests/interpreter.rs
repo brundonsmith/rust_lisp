@@ -2,7 +2,7 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{IntType, RuntimeError, Symbol, Value},
+    model::{FloatType, IntType, RuntimeError, Symbol, Value},
     parser::parse,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -12,6 +12,27 @@ fn eval_basic_expression() {
     let result = eval_str("(+ (* 1 2) (/ 6 3))");
 
     assert_eq!(result, Value::from(Into::<IntType>::into(4)));
+}
+
+#[test]
+fn eval_add_list() {
+    let result = eval_str("(+ 1 2 3 4)");
+
+    assert_eq!(result, Value::from(Into::<IntType>::into(10)));
+}
+
+#[test]
+fn eval_mul_list_ints() {
+    let result = eval_str("(* 1 2 3 4)");
+
+    assert_eq!(result, Value::from(Into::<IntType>::into(24)));
+}
+
+#[test]
+fn eval_mul_list_mixed() {
+    let result = eval_str("(* 1 2.0 3.0 4)");
+
+    assert_eq!(result, Value::from(Into::<FloatType>::into(24.0)));
 }
 
 #[test]
