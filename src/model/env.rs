@@ -4,29 +4,64 @@ use std::{collections::HashMap, fmt::Debug};
 
 use super::{RuntimeError, Symbol, Value};
 
+#[cfg(feature = "state")]
+use erased_set::ErasedSet;
+
 /// An environment of symbol bindings. Used for the base environment, for
 /// closures, for `let` statements, for function arguments, etc.
 #[derive(Debug)]
 pub struct Env {
     parent: Option<Rc<RefCell<Env>>>,
     entries: HashMap<Symbol, Value>,
+    #[cfg(feature = "state")]
+    state: Rc<ErasedSet>,
 }
 
-impl Env {
+impl<'a> Env {
     /// Create a new, empty environment
     pub fn new() -> Self {
         Self {
             parent: None,
             entries: HashMap::new(),
+            #[cfg(feature = "state")]
+            state: Rc::new(ErasedSet::new()),
         }
     }
 
     /// Create a new environment extending the given environment
     pub fn extend(parent: Rc<RefCell<Env>>) -> Self {
+        #[cfg(feature = "state")]
+        let state = parent.borrow().state.clone();
         Self {
-            parent: Some(parent),
             entries: HashMap::new(),
+            parent: Some(parent),
+            #[cfg(feature = "state")]
+            state,
         }
+    }
+
+    /// Gets the singleton instance of `T` from the environment state if
+    /// it's already set.
+    #[cfg(feature = "state")]
+    pub fn get_state<T: 'a + 'static>(&'a self) -> Option<&'a T> {
+        self.state.get::<T>()
+    }
+
+    /// Sets (or replaces) the singleton instance of `T` from the environment
+    /// state. **This will panic if the `Env` instance is currently being shared
+    /// or extended.** Use `try_set_state()` instead if this is a concern.
+    #[cfg(feature = "state")]
+    pub fn set_state<T: 'static>(&mut self, v: T) {
+        Rc::get_mut(&mut self.state).unwrap().insert(v);
+    }
+
+    /// Sets (or replaces) the singleton instance of `T` from the environment
+    /// state. If the `Env` is being shared or has a child state, returns `false`.
+    #[cfg(feature = "state")]
+    pub fn try_set_state<T: 'static>(&mut self, v: T) -> bool {
+        Rc::get_mut(&mut self.state)
+            .and_then(|s| s.insert(v))
+            .is_some()
     }
 
     /// Walks up the environment hierarchy until it finds the symbol's value or

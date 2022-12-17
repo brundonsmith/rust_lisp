@@ -25,11 +25,13 @@ i128 = []
 i64 = []
 i16 = []
 i8 = []
+state = [ "erased_set" ]
 
 # Use f64 for Value::Float, if unset, use f32
 f64 = []
 
 [dependencies]
 cfg-if = "1.0"
+erased_set = { version = "0.7", optional = true }
 num-traits = { version = "0.2", optional = true }
 num-bigint = { version = "0.4", optional = true }

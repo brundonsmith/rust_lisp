@@ -4,6 +4,9 @@ use rust_lisp::{
     lisp,
     model::{IntType, Value},
 };
+
+#[cfg(feature = "state")]
+use rust_lisp::model::Env;
 use std::{cell::RefCell, rc::Rc};
 
 #[test]
@@ -116,6 +119,58 @@ fn hash_map() {
     });
 
     assert_eq!(result, lisp! { "1 4" });
+}
+
+#[test]
+#[cfg(feature = "state")]
+fn state() {
+    let env = Rc::new(RefCell::new(default_env()));
+
+    env.borrow_mut().set_state("Hello".to_string());
+    assert_eq!(
+        *env.borrow().get_state::<String>().unwrap(),
+        "Hello".to_string()
+    );
+
+    struct Foo(usize);
+
+    env.borrow_mut().set_state(Foo(42));
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 42);
+
+    env.borrow_mut().set_state("World".to_string());
+    assert_eq!(
+        *env.borrow().get_state::<String>().unwrap(),
+        "World".to_string()
+    );
+
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 42);
+}
+
+#[test]
+#[cfg(feature = "state")]
+fn inherit_state() {
+    let env = Rc::new(RefCell::new(default_env()));
+
+    struct Foo(usize);
+
+    env.borrow_mut().set_state(Foo(42));
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 42);
+
+    let child_env = Rc::new(RefCell::new(Env::extend(env.clone())));
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 42);
+    assert_eq!(child_env.borrow().get_state::<Foo>().unwrap().0, 42);
+
+    assert_eq!(env.borrow_mut().try_set_state(Foo(10)), false);
+    assert_eq!(child_env.borrow_mut().try_set_state(Foo(10)), false);
+
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 42);
+    assert_eq!(child_env.borrow().get_state::<Foo>().unwrap().0, 42);
+
+    drop(child_env);
+
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 42);
+    assert_eq!(env.borrow_mut().try_set_state(Foo(10)), true);
+    assert_eq!(env.borrow().get_state::<Foo>().unwrap().0, 10);
 }
 
 #[cfg(test)]
