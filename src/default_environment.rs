@@ -434,7 +434,7 @@ pub fn default_env() -> Env {
                     _ => {
                         return Err(RuntimeError {
                             msg: format!(
-                                "Function \"+\" requires arguments to be numbers; found {}",
+                                "Function \"*\" requires arguments to be numbers; found {}",
                                 arg
                             ),
                         });
