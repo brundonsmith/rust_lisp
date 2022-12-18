@@ -53,6 +53,24 @@ pub enum Value {
     },
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Type {
+    Nil,
+    Boolean,
+    Int,
+    Float,
+    String,
+    Symbol,
+    /// Only for real lists; nil is represented as `Nil`
+    List,
+    HashMap,
+    /// May represent a native function or lambda (or other callable)
+    Function,
+    Macro,
+    Foreign,
+    TailCall,
+}
+
 /// Implement this trait for a struct or enum, and then you'll be able to hold
 /// references to it in Value::Foreign and interact with it from lisp code via
 /// the `cmd` form
@@ -76,6 +94,26 @@ pub type HashMapRc = Rc<RefCell<HashMap<Value, Value>>>;
 /// Alias for the contents of Value::Foreign
 pub type ForeignValueRc = Rc<RefCell<dyn ForeignValue>>;
 
+impl ToString for Type {
+    fn to_string(&self) -> String {
+        match self {
+            Type::Nil => "nil",
+            Type::Boolean => "boolean",
+            Type::Int => "integer",
+            Type::Float => "float",
+            Type::String => "string",
+            Type::Symbol => "symbol",
+            Type::List => "list",
+            Type::HashMap => "hash map",
+            Type::Function => "function",
+            Type::Macro => "macro",
+            Type::Foreign => "foreign",
+            Type::TailCall => "tail call",
+        }
+        .to_string()
+    }
+}
+
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
 
@@ -97,6 +135,33 @@ impl Value {
             Value::Foreign(_) => "foreign value",
             Value::TailCall { func: _, args: _ } => "tail call",
         }
+    }
+
+    /// Returns a non-parameterized type value for this `Value`
+    pub fn ty(&self) -> Type {
+        match self {
+            Value::NativeFunc(_) => Type::Function,
+            Value::NativeClosure(_) => Type::Function,
+            Value::Lambda(_) => Type::Function,
+            Value::Macro(_) => Type::Macro,
+            Value::True => Type::Boolean,
+            Value::False => Type::Boolean,
+            Value::String(_) => Type::String,
+            Value::List(List::NIL) => Type::Nil,
+            Value::List(_) => Type::List,
+            Value::HashMap(_) => Type::HashMap,
+            Value::Int(_) => Type::Int,
+            Value::Float(_) => Type::Float,
+            Value::Symbol(_) => Type::Symbol,
+            Value::Foreign(_) => Type::Foreign,
+            Value::TailCall { func: _, args: _ } => Type::TailCall,
+        }
+    }
+
+    /// Checks if the `Value` is type `ty`
+    #[inline]
+    pub fn is(&self, ty: Type) -> bool {
+        self.ty() == ty
     }
 }
 

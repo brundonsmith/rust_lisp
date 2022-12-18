@@ -37,4 +37,4 @@ pub use lambda::Lambda;
 pub use list::List;
 pub use runtime_error::RuntimeError;
 pub use symbol::Symbol;
-pub use value::{ForeignValue, ForeignValueRc, HashMapRc, NativeFunc, Value};
+pub use value::{ForeignValue, ForeignValueRc, HashMapRc, NativeFunc, Type, Value};
