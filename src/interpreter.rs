@@ -349,6 +349,8 @@ fn call_function_or_macro(
 ) -> Result<Value, RuntimeError> {
     if let Value::NativeFunc(func) = func {
         func(env, &args)
+    } else if let Value::NativeClosure(func) = func {
+        func(env, &args)
     } else {
         let lambda = match func {
             Value::Lambda(lamb) => Some(lamb),

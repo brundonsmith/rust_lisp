@@ -29,6 +29,9 @@ pub enum Value {
     /// A native Rust function that can be called from lisp code
     NativeFunc(NativeFunc),
 
+    /// A native Rust closure function that can be called from lisp code
+    NativeClosure(NativeClosure),
+
     /// A lisp function defined in lisp
     Lambda(Lambda),
 
@@ -61,6 +64,9 @@ pub trait ForeignValue {
 /// A Rust function that is to be called from lisp code
 pub type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &[Value]) -> Result<Value, RuntimeError>;
 
+/// A Rust function that is to be called from lisp code
+pub type NativeClosure = Rc<Box<dyn Fn(Rc<RefCell<Env>>, &[Value]) -> Result<Value, RuntimeError>>>;
+
 /// Alias for the contents of Value::HashMap
 pub type HashMapRc = Rc<RefCell<HashMap<Value, Value>>>;
 
@@ -73,6 +79,7 @@ impl Value {
     pub fn type_name(&self) -> &str {
         match self {
             Value::NativeFunc(_) => "function",
+            Value::NativeClosure(_) => "function",
             Value::Lambda(_) => "function",
             Value::Macro(_) => "macro",
             Value::True => "T",
@@ -273,6 +280,7 @@ impl std::fmt::Display for Value {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Value::NativeFunc(_) => write!(formatter, "<native_function>"),
+            Value::NativeClosure(_) => write!(formatter, "<native_closure>"),
             Value::True => write!(formatter, "T"),
             Value::False => write!(formatter, "F"),
             Value::Lambda(n) => write!(formatter, "<func:(lambda {})>", n),
@@ -308,6 +316,7 @@ impl Debug for Value {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Value::NativeFunc(_) => write!(formatter, "<native_function>"),
+            Value::NativeClosure(_) => write!(formatter, "<native_closure>"),
             Value::True => write!(formatter, "Value::True"),
             Value::False => write!(formatter, "Value::False"),
             Value::Lambda(n) => write!(formatter, "Value::Lambda({:?})", n),
@@ -332,6 +341,7 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Value::NativeFunc(_) => false,
+            Value::NativeClosure(_) => false,
             Value::True => matches!(other, &Value::True),
             Value::False => matches!(other, &Value::False),
             Value::Lambda(n) => match other {
@@ -464,6 +474,7 @@ impl PartialOrd for Value {
                 _ => None,
             },
             Value::NativeFunc(_) => None,
+            Value::NativeClosure(_) => None,
             Value::Lambda(_) => None,
             Value::Macro(_) => None,
             Value::List(_) => None,
@@ -496,6 +507,7 @@ impl std::hash::Hash for Value {
             Value::List(x) => x.hash(state),
             Value::HashMap(x) => x.as_ptr().hash(state),
             Value::NativeFunc(x) => std::ptr::hash(x, state),
+            Value::NativeClosure(x) => std::ptr::hash(x, state),
             Value::Lambda(x) => x.hash(state),
             Value::Macro(x) => x.hash(state),
             Value::Foreign(x) => std::ptr::hash(x, state),

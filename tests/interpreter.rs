@@ -342,6 +342,28 @@ fn short_circuit() {
     assert_eq!(result, lisp! { 0 })
 }
 
+#[test]
+fn native_closure() {
+    let ast = parse("(+ (count) (count) (count))")
+        .next()
+        .unwrap()
+        .unwrap();
+    let env = Rc::new(RefCell::new(default_env()));
+
+    static mut COUNT: i32 = 0;
+    env.borrow_mut().define(
+        Symbol::from("count"),
+        Value::NativeClosure(Rc::new(Box::new(|_, _| {
+            unsafe { COUNT += 1 };
+            Ok(Value::from(unsafe { COUNT }))
+        }))),
+    );
+
+    let result = eval(env, &ast).unwrap();
+    assert_eq!(result, lisp! { 6 });
+    assert_eq!(unsafe { COUNT }, 3);
+}
+
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();
