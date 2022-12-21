@@ -19,4 +19,4 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose && cargo test --verbose --features=bigint
+      run: cargo test --verbose && cargo test --verbose --features=f64 && cargo test --verbose --features=bigint && cargo test --verbose --features=bigint,f64
