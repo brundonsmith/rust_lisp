@@ -26,9 +26,6 @@ i64 = []
 i16 = []
 i8 = []
 
-# Use in environments where the linker can't find libm.
-libm = ["dep:libm"]
-
 # Use f64 for Value::Float, if unset, use f32
 f64 = []
 
