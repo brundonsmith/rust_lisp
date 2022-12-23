@@ -304,7 +304,19 @@ pub fn default_env() -> Env {
     env.define(
         Symbol::from("+"),
         Value::NativeFunc(|_env, args| {
-            let mut total = Value::Int(0);
+            let first_arg = require_arg("+", &args, 1)?;
+
+            let mut total = match first_arg {
+                Value::Int(_) => Ok(Value::Int(0)),
+                Value::Float(_) => Ok(Value::Float(0.0)),
+                Value::String(_) => Ok(Value::String("".into())),
+                _ => Err(RuntimeError {
+                    msg: format!(
+                        "Function \"+\" requires arguments to be numbers or strings; found {}",
+                        first_arg
+                    ),
+                }),
+            }?;
 
             for arg in args {
                 total = (&total + &arg).map_err(|_| RuntimeError {
