@@ -2,7 +2,7 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{IntType, Value},
+    model::{IntType, RuntimeError, Symbol, Value},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -140,6 +140,45 @@ fn number_cast_comparisons() {
         }),
         lisp! { F }
     );
+}
+
+#[test]
+fn opaque() {
+    let env = Rc::new(RefCell::new(default_env()));
+
+    struct Foo(i64);
+
+    env.borrow_mut().define(
+        Symbol::from("makefoo"),
+        Value::NativeFunc(|_, args| {
+            let val = match args[0] {
+                Value::Int(i) => Ok(i),
+                _ => Err(RuntimeError {
+                    msg: "incorrect type".to_string(),
+                }),
+            }?;
+
+            Ok(Value::Opaque(Rc::new(RefCell::new(Foo(val.into())))))
+        }),
+    );
+
+    let result = eval(
+        env,
+        &lisp! {
+            (makefoo 42)
+        },
+    )
+    .unwrap();
+
+    if let Value::Opaque(op) = result {
+        if let Some(Foo(v)) = op.borrow().downcast_ref() {
+            assert_eq!(*v, 42);
+        } else {
+            panic!("value is not a Foo");
+        }
+    } else {
+        panic!("value not an opaque value");
+    }
 }
 
 #[cfg(test)]
