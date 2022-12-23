@@ -1,4 +1,5 @@
 use cfg_if::cfg_if;
+use std::ops::{Add, Div, Mul, Sub};
 use std::rc::Rc;
 use std::{cell::RefCell, cmp::Ordering};
 use std::{collections::HashMap, fmt::Debug};
@@ -277,16 +278,16 @@ impl From<ForeignValueRc> for Value {
 }
 
 impl std::fmt::Display for Value {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Value::NativeFunc(_) => write!(formatter, "<native_function>"),
-            Value::NativeClosure(_) => write!(formatter, "<closure_function>"),
-            Value::True => write!(formatter, "T"),
-            Value::False => write!(formatter, "F"),
-            Value::Lambda(this) => write!(formatter, "<func:(lambda {})>", this),
-            Value::Macro(this) => write!(formatter, "(macro {})", this),
-            Value::String(this) => write!(formatter, "\"{}\"", this),
-            Value::List(this) => write!(formatter, "{}", this),
+            Value::NativeFunc(_) => f.write_str("<native_function>"),
+            Value::NativeClosure(_) => f.write_str("<closure_function>"),
+            Value::True => f.write_str("T"),
+            Value::False => f.write_str("F"),
+            Value::Lambda(this) => write!(f, "<func:(lambda {})>", this),
+            Value::Macro(this) => write!(f, "(macro {})", this),
+            Value::String(this) => write!(f, "\"{}\"", this),
+            Value::List(this) => write!(f, "{}", this),
             Value::HashMap(this) => {
                 let borrowed = this.borrow();
                 let entries = std::iter::once(lisp! { hash }).chain(
@@ -298,38 +299,37 @@ impl std::fmt::Display for Value {
 
                 let list = Value::List(entries.collect());
 
-                write!(formatter, "{}", list)
+                write!(f, "{}", list)
             }
-            Value::Int(this) => write!(formatter, "{}", this),
-            Value::Float(this) => write!(formatter, "{}", this),
-            Value::Symbol(Symbol(this)) => write!(formatter, "{}", this),
-            Value::Foreign(_) => write!(formatter, "<foreign_value>"),
+            Value::Int(this) => write!(f, "{}", this),
+            Value::Float(this) => write!(f, "{}", this),
+            Value::Symbol(Symbol(this)) => write!(f, "{}", this),
+            Value::Foreign(_) => f.write_str("<foreign_value>"),
             Value::TailCall { func, args } => {
-                write!(formatter, "<tail-call: {:?} with {:?} >", func, args)
+                write!(f, "<tail-call: {:?} with {:?} >", func, args)
             }
         }
     }
 }
 
-// 🦀 Ferris blesses the Debug trait
 impl Debug for Value {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Value::NativeFunc(_) => write!(formatter, "<native_function>"),
-            Value::NativeClosure(_) => write!(formatter, "<closure_function>"),
-            Value::True => write!(formatter, "Value::True"),
-            Value::False => write!(formatter, "Value::False"),
-            Value::Lambda(this) => write!(formatter, "Value::Lambda({:?})", this),
-            Value::Macro(this) => write!(formatter, "Value::Macro({:?})", this),
-            Value::String(this) => write!(formatter, "Value::String({:?})", this),
-            Value::List(this) => write!(formatter, "Value::List({:?})", this),
-            Value::HashMap(this) => write!(formatter, "Value::HashMap({:?})", this),
-            Value::Int(this) => write!(formatter, "Value::Int({:?})", this),
-            Value::Float(this) => write!(formatter, "Value::Float({:?})", this),
-            Value::Symbol(Symbol(this)) => write!(formatter, "Value::Symbol({:?})", this),
-            Value::Foreign(_) => write!(formatter, "<foreign_value>"),
+            Value::NativeFunc(_) => f.write_str("<native_function>"),
+            Value::NativeClosure(_) => f.write_str("<closure_function>"),
+            Value::True => f.write_str("Value::True"),
+            Value::False => f.write_str("Value::False"),
+            Value::Lambda(this) => write!(f, "Value::Lambda({:?})", this),
+            Value::Macro(this) => write!(f, "Value::Macro({:?})", this),
+            Value::String(this) => write!(f, "Value::String({:?})", this),
+            Value::List(this) => write!(f, "Value::List({:?})", this),
+            Value::HashMap(this) => write!(f, "Value::HashMap({:?})", this),
+            Value::Int(this) => write!(f, "Value::Int({:?})", this),
+            Value::Float(this) => write!(f, "Value::Float({:?})", this),
+            Value::Symbol(Symbol(this)) => write!(f, "Value::Symbol({:?})", this),
+            Value::Foreign(_) => f.write_str("<foreign_value>"),
             Value::TailCall { func, args } => write!(
-                formatter,
+                f,
                 "Value::TailCall {{ func: {:?}, args: {:?} }}",
                 func, args
             ),
@@ -339,54 +339,30 @@ impl Debug for Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        match self {
-            Value::NativeFunc(_) => false,
-            Value::NativeClosure(_) => false,
-            Value::True => matches!(other, &Value::True),
-            Value::False => matches!(other, &Value::False),
-            Value::Lambda(this) => match other {
-                Value::Lambda(other) => this == other,
-                _ => false,
-            },
-            Value::Macro(this) => match other {
-                Value::Macro(other) => this == other,
-                _ => false,
-            },
-            Value::String(this) => match other {
-                Value::String(other) => this == other,
-                _ => false,
-            },
-            Value::List(this) => match other {
-                Value::List(other) => this == other,
-                _ => false,
-            },
-            Value::HashMap(this) => match other {
-                Value::HashMap(other) => Rc::ptr_eq(this, other),
-                _ => false,
-            },
-            Value::Int(this) => match other {
-                Value::Int(other) => this == other,
-                _ => false,
-            },
-            Value::Float(this) => match other {
-                Value::Float(other) => this.to_bits() == other.to_bits(),
-                _ => false,
-            },
-            Value::Symbol(Symbol(this)) => match other {
-                Value::Symbol(Symbol(other)) => this == other,
-                _ => false,
-            },
-            Value::Foreign(this) => match other {
-                Value::Foreign(other) => Rc::ptr_eq(this, other),
-                _ => false,
-            },
-            Value::TailCall { func, args } => match other {
+        match (self, other) {
+            (Value::True, Value::True) => true,
+            (Value::False, Value::False) => true,
+            (Value::Lambda(this), Value::Lambda(other)) => this == other,
+            (Value::Macro(this), Value::Macro(other)) => this == other,
+            (Value::String(this), Value::String(other)) => this == other,
+            (Value::List(this), Value::List(other)) => this == other,
+            (Value::Int(this), Value::Int(other)) => this == other,
+            (Value::Float(this), Value::Float(other)) => this.to_bits() == other.to_bits(),
+            (Value::Symbol(this), Value::Symbol(other)) => this == other,
+            (Value::HashMap(this), Value::HashMap(other)) => Rc::ptr_eq(this, other),
+            (Value::Foreign(this), Value::Foreign(other)) => Rc::ptr_eq(this, other),
+            (
                 Value::TailCall {
-                    func: func2,
-                    args: args2,
-                } => func == func2 && args == args2,
-                _ => false,
-            },
+                    func: this_func,
+                    args: this_args,
+                },
+                Value::TailCall {
+                    func: other_func,
+                    args: other_args,
+                },
+            ) => this_func == other_func && this_args == other_args,
+
+            _ => false,
         }
     }
 }
@@ -395,56 +371,150 @@ impl Eq for Value {}
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
-        match self {
-            Value::True => {
-                if other.into() {
-                    Some(Ordering::Equal)
-                } else {
-                    Some(Ordering::Greater)
-                }
-            }
-            Value::False => {
-                let other: bool = other.into();
-
-                if !other {
-                    Some(Ordering::Equal)
-                } else {
-                    Some(Ordering::Greater)
-                }
-            }
-            Value::String(this) => {
-                if let Value::String(s) = other {
-                    this.partial_cmp(s)
-                } else {
-                    None
-                }
-            }
-            Value::Symbol(Symbol(this)) => {
-                if let Value::Symbol(Symbol(s)) = other {
-                    this.partial_cmp(s)
-                } else {
-                    None
-                }
-            }
-            Value::Int(this) => match other {
-                Value::Int(other) => this.partial_cmp(other),
-                Value::Float(other) => int_type_to_float_type(this).partial_cmp(other),
-                _ => None,
-            },
-            Value::Float(this) => match other {
-                Value::Int(other) => this.partial_cmp(&int_type_to_float_type(other)),
-                Value::Float(other) => this.partial_cmp(other),
-                _ => None,
-            },
-            Value::NativeFunc(_) => None,
-            Value::NativeClosure(_) => None,
-            Value::Lambda(_) => None,
-            Value::Macro(_) => None,
-            Value::List(_) => None,
-            Value::HashMap(_) => None,
-            Value::Foreign(_) => None,
-            Value::TailCall { func: _, args: _ } => None,
+        if self == other {
+            return Some(Ordering::Equal);
         }
+
+        match (self, other) {
+            (Value::True, Value::False) => Some(Ordering::Less),
+            (Value::False, Value::True) => Some(Ordering::Greater),
+            (Value::String(this), Value::String(other)) => this.partial_cmp(other),
+            (Value::Symbol(Symbol(this)), Value::Symbol(Symbol(other))) => this.partial_cmp(other),
+            (Value::Int(this), Value::Int(other)) => this.partial_cmp(other),
+            (Value::Float(this), Value::Float(other)) => this.partial_cmp(other),
+            (Value::Int(this), Value::Float(other)) => {
+                int_type_to_float_type(this).partial_cmp(other)
+            }
+            (Value::Float(this), Value::Int(other)) => {
+                this.partial_cmp(&int_type_to_float_type(other))
+            }
+            _ => None,
+        }
+    }
+}
+
+impl Add<&Value> for &Value {
+    type Output = Result<Value, ()>;
+
+    fn add(self, other: &Value) -> Self::Output {
+        match (self, other) {
+            // same type
+            (Value::Int(this), Value::Int(other)) => Ok(Value::from(this + other)),
+            (Value::Float(this), Value::Float(other)) => Ok(Value::from(this + other)),
+            (Value::String(this), Value::String(other)) => Ok(Value::from(this.clone() + other)),
+
+            // different numeric types
+            (Value::Int(this), Value::Float(other)) => {
+                Ok(Value::from(int_type_to_float_type(&this) + other))
+            }
+            (Value::Float(this), Value::Int(other)) => {
+                Ok(Value::from(this + int_type_to_float_type(&other)))
+            }
+
+            // non-string + string
+            (Value::String(this), Value::Int(other)) => {
+                Ok(Value::from(this.clone() + &other.to_string()))
+            }
+            (Value::String(this), Value::Float(other)) => {
+                Ok(Value::from(this.clone() + &other.to_string()))
+            }
+            (Value::Int(this), Value::String(other)) => Ok(Value::from(this.to_string() + other)),
+            (Value::Float(this), Value::String(other)) => Ok(Value::from(this.to_string() + other)),
+
+            _ => Err(()),
+        }
+    }
+}
+
+impl Add<Value> for Value {
+    type Output = Result<Value, ()>;
+
+    fn add(self, other: Value) -> Self::Output {
+        &self + &other
+    }
+}
+
+impl Sub<&Value> for &Value {
+    type Output = Result<Value, ()>;
+
+    fn sub(self, other: &Value) -> Self::Output {
+        match (self, other) {
+            (Value::Int(this), Value::Int(other)) => Ok(Value::from(this - other)),
+            (Value::Float(this), Value::Float(other)) => Ok(Value::from(this - other)),
+
+            (Value::Int(this), Value::Float(other)) => {
+                Ok(Value::from(int_type_to_float_type(&this) - other))
+            }
+            (Value::Float(this), Value::Int(other)) => {
+                Ok(Value::from(this - int_type_to_float_type(&other)))
+            }
+
+            _ => Err(()),
+        }
+    }
+}
+
+impl Sub<Value> for Value {
+    type Output = Result<Value, ()>;
+
+    fn sub(self, other: Value) -> Self::Output {
+        &self - &other
+    }
+}
+
+impl Mul<&Value> for &Value {
+    type Output = Result<Value, ()>;
+
+    fn mul(self, other: &Value) -> Self::Output {
+        match (self, other) {
+            (Value::Int(this), Value::Int(other)) => Ok(Value::from(this * other)),
+            (Value::Float(this), Value::Float(other)) => Ok(Value::from(this * other)),
+
+            (Value::Int(this), Value::Float(other)) => {
+                Ok(Value::from(int_type_to_float_type(&this) * other))
+            }
+            (Value::Float(this), Value::Int(other)) => {
+                Ok(Value::from(this * int_type_to_float_type(&other)))
+            }
+
+            _ => Err(()),
+        }
+    }
+}
+
+impl Mul<Value> for Value {
+    type Output = Result<Value, ()>;
+
+    fn mul(self, other: Value) -> Self::Output {
+        &self * &other
+    }
+}
+
+impl Div<&Value> for &Value {
+    type Output = Result<Value, ()>;
+
+    fn div(self, other: &Value) -> Self::Output {
+        match (self, other) {
+            (Value::Int(this), Value::Int(other)) => Ok(Value::from(this / other)),
+            (Value::Float(this), Value::Float(other)) => Ok(Value::from(this / other)),
+
+            (Value::Int(this), Value::Float(other)) => {
+                Ok(Value::from(int_type_to_float_type(&this) / other))
+            }
+            (Value::Float(this), Value::Int(other)) => {
+                Ok(Value::from(this / int_type_to_float_type(&other)))
+            }
+
+            _ => Err(()),
+        }
+    }
+}
+
+impl Div<Value> for Value {
+    type Output = Result<Value, ()>;
+
+    fn div(self, other: Value) -> Self::Output {
+        &self / &other
     }
 }
 

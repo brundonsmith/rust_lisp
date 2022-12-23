@@ -1,7 +1,7 @@
 use crate::{
     interpreter::eval,
     lisp,
-    model::{Env, FloatType, HashMapRc, IntType, List, RuntimeError, Symbol, Value},
+    model::{Env, HashMapRc, IntType, List, RuntimeError, Symbol, Value},
     utils::{require_arg, require_typed_arg},
 };
 use cfg_if::cfg_if;
@@ -304,62 +304,15 @@ pub fn default_env() -> Env {
     env.define(
         Symbol::from("+"),
         Value::NativeFunc(|_env, args| {
-            let mut total = Value::NIL;
+            let mut total = Value::Int(0);
 
             for arg in args {
-                total = match &arg {
-                    Value::Int(x) => {
-                        match total {
-                            Value::List(List::NIL) => arg.clone(),
-                            Value::Int(t) => Value::Int(t + x.clone()),
-                            Value::Float(t) => {
-                                cfg_if! {
-                                    if #[cfg(feature = "bigint")] {
-                                        Value::Float(t + x.to_i128().unwrap() as FloatType)
-                                    } else {
-                                        Value::Float(t + *x as FloatType)
-                                    }
-                                }
-                            },
-                            Value::String(t) => Value::String(t + x.to_string().as_str()),
-                            _ => unreachable!("Will only ever assign int/float/string to `total`")
-                        }
-                    },
-                    Value::Float(x) => {
-                        match total {
-                            Value::List(List::NIL) => arg.clone(),
-                            Value::Int(t) => {
-                                cfg_if! {
-                                    if #[cfg(feature = "bigint")] {
-                                        Value::Float(t.to_i128().unwrap() as FloatType + *x)
-                                    } else {
-                                        Value::Float(t as FloatType + *x)
-                                    }
-                                }
-                            },
-                            Value::Float(t) => Value::Float(t + *x),
-                            Value::String(t) => Value::String(t + x.to_string().as_str()),
-                            _ => unreachable!("Will only ever assign int/float/string to `total`")
-                        }
-                    },
-                    Value::String(x) => {
-                        match total {
-                            Value::List(List::NIL) => arg.clone(),
-                            Value::Int(t) => Value::String(format!("{}{}", t, x)),
-                            Value::Float(t) => Value::String(format!("{}{}", t, x)),
-                            Value::String(t) => Value::String(t + x),
-                            _ => unreachable!("Will only ever assign int/float/string to `total`")
-                        }
-                    },
-                    _ => {
-                        return Err(RuntimeError {
-                            msg: format!(
-                                "Function \"+\" requires arguments to be numbers or strings; found {}",
-                                arg
-                            ),
-                        });
-                    }
-                };
+                total = (&total + &arg).map_err(|_| RuntimeError {
+                    msg: format!(
+                        "Function \"+\" requires arguments to be numbers or strings; found {}",
+                        arg
+                    ),
+                })?;
             }
 
             Ok(total)
@@ -372,21 +325,7 @@ pub fn default_env() -> Env {
             let a = require_arg("-", &args, 0)?;
             let b = require_arg("-", &args, 1)?;
 
-            if let (Ok(a), Ok(b)) = (
-                TryInto::<IntType>::try_into(a),
-                TryInto::<IntType>::try_into(b),
-            ) {
-                return Ok(Value::Int(a - b));
-            }
-
-            if let (Ok(a), Ok(b)) = (
-                TryInto::<FloatType>::try_into(a),
-                TryInto::<FloatType>::try_into(b),
-            ) {
-                return Ok(Value::Float(a - b));
-            }
-
-            Err(RuntimeError {
+            (a - b).map_err(|_| RuntimeError {
                 msg: String::from("Function \"-\" requires arguments to be numbers"),
             })
         }),
@@ -398,42 +337,12 @@ pub fn default_env() -> Env {
             let mut product = Value::Int(1);
 
             for arg in args {
-                product = match arg {
-                    Value::Int(x) => match product {
-                        Value::Int(t) => Value::Int(t * x.clone()),
-                        Value::Float(t) => {
-                            cfg_if! {
-                                if #[cfg(feature = "bigint")] {
-                                    Value::Float(t * x.to_i128().unwrap() as FloatType)
-                                } else {
-                                    Value::Float(t * *x as FloatType)
-                                }
-                            }
-                        }
-                        _ => unreachable!("Will only ever assign int/float to `product`"),
-                    },
-                    Value::Float(x) => match product {
-                        Value::Int(t) => {
-                            cfg_if! {
-                                if #[cfg(feature = "bigint")] {
-                                    Value::Float(t.to_i128().unwrap() as FloatType * *x)
-                                } else {
-                                    Value::Float(t as FloatType * *x)
-                                }
-                            }
-                        }
-                        Value::Float(t) => Value::Float(t * *x),
-                        _ => unreachable!("Will only ever assign int/float to `product`"),
-                    },
-                    _ => {
-                        return Err(RuntimeError {
-                            msg: format!(
-                                "Function \"*\" requires arguments to be numbers; found {}",
-                                arg
-                            ),
-                        });
-                    }
-                };
+                product = (&product * &arg).map_err(|_| RuntimeError {
+                    msg: format!(
+                        "Function \"*\" requires arguments to be numbers; found {}",
+                        arg
+                    ),
+                })?;
             }
 
             Ok(product)
@@ -446,21 +355,7 @@ pub fn default_env() -> Env {
             let a = require_arg("/", &args, 0)?;
             let b = require_arg("/", &args, 1)?;
 
-            if let (Ok(a), Ok(b)) = (
-                TryInto::<IntType>::try_into(a),
-                TryInto::<IntType>::try_into(b),
-            ) {
-                return Ok(Value::Int(a / b));
-            }
-
-            if let (Ok(a), Ok(b)) = (
-                TryInto::<FloatType>::try_into(a),
-                TryInto::<FloatType>::try_into(b),
-            ) {
-                return Ok(Value::Float(a / b));
-            }
-
-            Err(RuntimeError {
+            (a / b).map_err(|_| RuntimeError {
                 msg: String::from("Function \"/\" requires arguments to be numbers"),
             })
         }),
