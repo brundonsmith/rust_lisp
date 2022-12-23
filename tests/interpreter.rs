@@ -342,6 +342,36 @@ fn short_circuit() {
     assert_eq!(result, lisp! { 0 })
 }
 
+#[test]
+fn native_closure() {
+    let my_state = Rc::new(RefCell::new(0));
+
+    let expression = lisp! {
+      (begin
+        (my_closure)
+        (my_closure)
+        (my_closure))
+    };
+
+    let mut env = default_env();
+    let my_state_closure = my_state.clone();
+    env.define(
+        Symbol::from("my_closure"),
+        Value::NativeClosure(Rc::new(RefCell::new(
+            move |_env, _args| -> Result<Value, RuntimeError> {
+                let current = *my_state_closure.borrow();
+                my_state_closure.replace(current + 1);
+                Ok(Value::NIL)
+            },
+        ))),
+    );
+    let env = Rc::new(RefCell::new(env));
+
+    eval(env, &expression).unwrap();
+
+    assert_eq!(*my_state.borrow(), 3);
+}
+
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();

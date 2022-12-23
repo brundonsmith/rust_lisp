@@ -281,13 +281,14 @@ fn eval_inner(
 
                 // function call or macro expand
                 _ => {
-                    let func_or_macro =
+                    let mut func_or_macro =
                         eval_inner(env.clone(), &list.car()?, context.found_tail(true))?;
 
                     if matches!(func_or_macro, Value::Macro(_)) {
                         let args = list.into_iter().skip(1).collect::<Vec<Value>>();
 
-                        let expanded = call_function_or_macro(env.clone(), &func_or_macro, args)?;
+                        let expanded =
+                            call_function_or_macro(env.clone(), &mut func_or_macro, args)?;
 
                         eval_inner(env.clone(), &expanded, Context::new())
                     } else {
@@ -303,10 +304,11 @@ fn eval_inner(
                                 args,
                             })
                         } else {
-                            let mut res = call_function_or_macro(env.clone(), &func_or_macro, args);
+                            let mut res =
+                                call_function_or_macro(env.clone(), &mut func_or_macro, args);
 
                             while let Ok(Value::TailCall { func, args }) = res {
-                                res = call_function_or_macro(env.clone(), &func, args);
+                                res = call_function_or_macro(env.clone(), func.as_ref(), args);
                             }
 
                             res
@@ -348,7 +350,9 @@ fn call_function_or_macro(
     args: Vec<Value>,
 ) -> Result<Value, RuntimeError> {
     if let Value::NativeFunc(func) = func {
-        func(env, &args)
+        func(env, args)
+    } else if let Value::NativeClosure(closure) = func {
+        closure.borrow_mut()(env, args)
     } else {
         let lambda = match func {
             Value::Lambda(lamb) => Some(lamb),
