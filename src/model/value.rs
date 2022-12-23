@@ -62,7 +62,9 @@ pub trait ForeignValue {
         env: Rc<RefCell<Env>>,
         command: &str,
         args: &[Value],
-    ) -> Result<Value, RuntimeError>;
+    ) -> Result<Value, RuntimeError> {
+        Ok(Value::NIL)
+    }
 }
 
 /// A Rust function that is to be called from lisp code
