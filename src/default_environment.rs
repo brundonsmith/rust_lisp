@@ -5,7 +5,9 @@ use crate::{
     utils::{require_arg, require_typed_arg},
 };
 use cfg_if::cfg_if;
-use std::{cell::RefCell, collections::HashMap, convert::TryInto, rc::Rc};
+use std::{
+    cell::RefCell, collections::HashMap, convert::TryInto, os::unix::prelude::IntoRawFd, rc::Rc,
+};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
@@ -315,7 +317,7 @@ pub fn default_env() -> Env {
             let first_arg = require_arg("+", &args, 1)?;
 
             let mut total = match first_arg {
-                Value::Int(_) => Ok(Value::Int(0)),
+                Value::Int(_) => Ok(Value::Int(0.into())),
                 Value::Float(_) => Ok(Value::Float(0.0)),
                 Value::String(_) => Ok(Value::String("".into())),
                 _ => Err(RuntimeError {
@@ -354,7 +356,7 @@ pub fn default_env() -> Env {
     env.define(
         Symbol::from("*"),
         Value::NativeFunc(|_env, args| {
-            let mut product = Value::Int(1);
+            let mut product = Value::Int(1.into());
 
             for arg in args {
                 product = (&product * &arg).map_err(|_| RuntimeError {
