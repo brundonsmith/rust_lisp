@@ -29,6 +29,12 @@ pub enum Value {
     /// A native Rust function that can be called from lisp code
     NativeFunc(NativeFunc),
 
+    /// A native Rust closure that can be called from lisp code (the closure
+    /// can capture things from its Rust environment)
+    NativeClosure(
+        Rc<RefCell<dyn FnMut(Rc<RefCell<Env>>, Vec<Value>) -> Result<Value, RuntimeError>>>,
+    ),
+
     /// A lisp function defined in lisp
     Lambda(Lambda),
 
@@ -59,7 +65,7 @@ pub trait ForeignValue {
 }
 
 /// A Rust function that is to be called from lisp code
-pub type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &[Value]) -> Result<Value, RuntimeError>;
+pub type NativeFunc = fn(env: Rc<RefCell<Env>>, args: Vec<Value>) -> Result<Value, RuntimeError>;
 
 /// Alias for the contents of Value::HashMap
 pub type HashMapRc = Rc<RefCell<HashMap<Value, Value>>>;
@@ -70,9 +76,10 @@ pub type ForeignValueRc = Rc<RefCell<dyn ForeignValue>>;
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
 
-    pub fn type_name(&self) -> &str {
+    pub fn type_name(&self) -> &'static str {
         match self {
             Value::NativeFunc(_) => "function",
+            Value::NativeClosure(_) => "function",
             Value::Lambda(_) => "function",
             Value::Macro(_) => "macro",
             Value::True => "T",
@@ -116,7 +123,7 @@ impl TryFrom<&Value> for IntType {
 
     fn try_from(value: &Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Int(n) => Ok(n.clone()),
+            Value::Int(this) => Ok(this.clone()),
             _ => Err(RuntimeError {
                 msg: format!("Expected int, got a {}", value),
             }),
@@ -135,7 +142,7 @@ impl TryFrom<&Value> for FloatType {
 
     fn try_from(value: &Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Float(n) => Ok(*n),
+            Value::Float(this) => Ok(*this),
             _ => Err(RuntimeError {
                 msg: format!("Expected float, got a {}", value),
             }),
@@ -154,7 +161,7 @@ impl<'a> TryFrom<&'a Value> for &'a String {
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
-            Value::String(n) => Ok(n),
+            Value::String(this) => Ok(this),
             _ => Err(RuntimeError {
                 msg: format!("Expected string, got a {}", value),
             }),
@@ -173,7 +180,7 @@ impl<'a> TryFrom<&'a Value> for &'a Symbol {
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Symbol(n) => Ok(n),
+            Value::Symbol(this) => Ok(this),
             _ => Err(RuntimeError {
                 msg: format!("Expected symbol, got a {}", value),
             }),
@@ -192,7 +199,7 @@ impl<'a> TryFrom<&'a Value> for &'a List {
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
-            Value::List(n) => Ok(n),
+            Value::List(this) => Ok(this),
             _ => Err(RuntimeError {
                 msg: format!("Expected list, got a {}", value),
             }),
@@ -211,7 +218,7 @@ impl<'a> TryFrom<&'a Value> for &'a Lambda {
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Lambda(n) => Ok(n),
+            Value::Lambda(this) => Ok(this),
             _ => Err(RuntimeError {
                 msg: format!("Expected function, got a {}", value),
             }),
@@ -230,7 +237,7 @@ impl<'a> TryFrom<&'a Value> for &'a HashMapRc {
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
-            Value::HashMap(n) => Ok(n),
+            Value::HashMap(this) => Ok(this),
             _ => Err(RuntimeError {
                 msg: format!("Expected hash map, got a {}", value),
             }),
@@ -255,7 +262,7 @@ impl<'a> TryFrom<&'a Value> for &'a ForeignValueRc {
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Foreign(n) => Ok(n),
+            Value::Foreign(this) => Ok(this),
             _ => Err(RuntimeError {
                 msg: format!("Expected foreign value, got a {}", value),
             }),
@@ -273,14 +280,15 @@ impl std::fmt::Display for Value {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Value::NativeFunc(_) => write!(formatter, "<native_function>"),
+            Value::NativeClosure(_) => write!(formatter, "<closure_function>"),
             Value::True => write!(formatter, "T"),
             Value::False => write!(formatter, "F"),
-            Value::Lambda(n) => write!(formatter, "<func:(lambda {})>", n),
-            Value::Macro(n) => write!(formatter, "(macro {})", n),
-            Value::String(n) => write!(formatter, "\"{}\"", n),
-            Value::List(n) => write!(formatter, "{}", n),
-            Value::HashMap(n) => {
-                let borrowed = n.borrow();
+            Value::Lambda(this) => write!(formatter, "<func:(lambda {})>", this),
+            Value::Macro(this) => write!(formatter, "(macro {})", this),
+            Value::String(this) => write!(formatter, "\"{}\"", this),
+            Value::List(this) => write!(formatter, "{}", this),
+            Value::HashMap(this) => {
+                let borrowed = this.borrow();
                 let entries = std::iter::once(lisp! { hash }).chain(
                     borrowed
                         .iter()
@@ -292,9 +300,9 @@ impl std::fmt::Display for Value {
 
                 write!(formatter, "{}", list)
             }
-            Value::Int(n) => write!(formatter, "{}", n),
-            Value::Float(n) => write!(formatter, "{}", n),
-            Value::Symbol(Symbol(n)) => write!(formatter, "{}", n),
+            Value::Int(this) => write!(formatter, "{}", this),
+            Value::Float(this) => write!(formatter, "{}", this),
+            Value::Symbol(Symbol(this)) => write!(formatter, "{}", this),
             Value::Foreign(_) => write!(formatter, "<foreign_value>"),
             Value::TailCall { func, args } => {
                 write!(formatter, "<tail-call: {:?} with {:?} >", func, args)
@@ -308,16 +316,17 @@ impl Debug for Value {
     fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Value::NativeFunc(_) => write!(formatter, "<native_function>"),
+            Value::NativeClosure(_) => write!(formatter, "<closure_function>"),
             Value::True => write!(formatter, "Value::True"),
             Value::False => write!(formatter, "Value::False"),
-            Value::Lambda(n) => write!(formatter, "Value::Lambda({:?})", n),
-            Value::Macro(n) => write!(formatter, "Value::Macro({:?})", n),
-            Value::String(n) => write!(formatter, "Value::String({:?})", n),
-            Value::List(n) => write!(formatter, "Value::List({:?})", n),
-            Value::HashMap(n) => write!(formatter, "Value::HashMap({:?})", n),
-            Value::Int(n) => write!(formatter, "Value::Int({:?})", n),
-            Value::Float(n) => write!(formatter, "Value::Float({:?})", n),
-            Value::Symbol(Symbol(n)) => write!(formatter, "Value::Symbol({:?})", n),
+            Value::Lambda(this) => write!(formatter, "Value::Lambda({:?})", this),
+            Value::Macro(this) => write!(formatter, "Value::Macro({:?})", this),
+            Value::String(this) => write!(formatter, "Value::String({:?})", this),
+            Value::List(this) => write!(formatter, "Value::List({:?})", this),
+            Value::HashMap(this) => write!(formatter, "Value::HashMap({:?})", this),
+            Value::Int(this) => write!(formatter, "Value::Int({:?})", this),
+            Value::Float(this) => write!(formatter, "Value::Float({:?})", this),
+            Value::Symbol(Symbol(this)) => write!(formatter, "Value::Symbol({:?})", this),
             Value::Foreign(_) => write!(formatter, "<foreign_value>"),
             Value::TailCall { func, args } => write!(
                 formatter,
@@ -332,42 +341,43 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Value::NativeFunc(_) => false,
+            Value::NativeClosure(_) => false,
             Value::True => matches!(other, &Value::True),
             Value::False => matches!(other, &Value::False),
-            Value::Lambda(n) => match other {
-                Value::Lambda(o) => n == o,
+            Value::Lambda(this) => match other {
+                Value::Lambda(other) => this == other,
                 _ => false,
             },
-            Value::Macro(n) => match other {
-                Value::Macro(o) => n == o,
+            Value::Macro(this) => match other {
+                Value::Macro(other) => this == other,
                 _ => false,
             },
-            Value::String(n) => match other {
-                Value::String(o) => n == o,
+            Value::String(this) => match other {
+                Value::String(other) => this == other,
                 _ => false,
             },
-            Value::List(n) => match other {
-                Value::List(o) => n == o,
+            Value::List(this) => match other {
+                Value::List(other) => this == other,
                 _ => false,
             },
-            Value::HashMap(n) => match other {
-                Value::HashMap(o) => Rc::ptr_eq(n, o),
+            Value::HashMap(this) => match other {
+                Value::HashMap(other) => Rc::ptr_eq(this, other),
                 _ => false,
             },
-            Value::Int(n) => match other {
-                Value::Int(o) => n == o,
+            Value::Int(this) => match other {
+                Value::Int(other) => this == other,
                 _ => false,
             },
-            Value::Float(n) => match other {
-                Value::Float(o) => n.to_bits() == o.to_bits(),
+            Value::Float(this) => match other {
+                Value::Float(other) => this.to_bits() == other.to_bits(),
                 _ => false,
             },
-            Value::Symbol(Symbol(n)) => match other {
-                Value::Symbol(Symbol(o)) => n == o,
+            Value::Symbol(Symbol(this)) => match other {
+                Value::Symbol(Symbol(other)) => this == other,
                 _ => false,
             },
-            Value::Foreign(n) => match other {
-                Value::Foreign(o) => Rc::ptr_eq(n, o),
+            Value::Foreign(this) => match other {
+                Value::Foreign(other) => Rc::ptr_eq(this, other),
                 _ => false,
             },
             Value::TailCall { func, args } => match other {
@@ -402,74 +412,55 @@ impl PartialOrd for Value {
                     Some(Ordering::Greater)
                 }
             }
-            Value::String(n) => {
+            Value::String(this) => {
                 if let Value::String(s) = other {
-                    n.partial_cmp(s)
+                    this.partial_cmp(s)
                 } else {
                     None
                 }
             }
-            Value::Symbol(Symbol(n)) => {
+            Value::Symbol(Symbol(this)) => {
                 if let Value::Symbol(Symbol(s)) = other {
-                    n.partial_cmp(s)
+                    this.partial_cmp(s)
                 } else {
                     None
                 }
             }
-            Value::Int(n) => match other {
-                Value::Int(o) => n.partial_cmp(o),
-                Value::Float(o) => {
-                    cfg_if! {
-                        if #[cfg(feature = "bigint")] {
-                            n.partial_cmp(&BigInt::from(o.round() as i64))
-                        } else {
-                            n.partial_cmp(&(o.round() as IntType))
-                        }
-                    }
-                }
+            Value::Int(this) => match other {
+                Value::Int(other) => this.partial_cmp(other),
+                Value::Float(other) => int_type_to_float_type(this).partial_cmp(other),
                 _ => None,
             },
-            Value::Float(n) => match other {
-                Value::Int(o) => {
-                    #[allow(clippy::needless_late_init)]
-                    let o_float: FloatType;
-
-                    // At these situations I think to myself that adding support for BigInt was a
-                    // mistake
-                    cfg_if! {
-                        if #[cfg(feature = "bigint")] { // Special case for `bigint`
-
-                            #[cfg(feature = "f64")]
-                            if let Some(f) = o.to_f64() {
-                                o_float = f;
-                            } else {
-                                return None
-                            }
-
-                            #[cfg(not(feature = "f64"))]
-                            if let Some(f) = o.to_f32() {
-                                o_float = f;
-                            } else {
-                                return None
-                            }
-
-                        } else { // Regular case for primitives
-                            o_float = *o as FloatType;
-                        }
-                    }
-
-                    n.partial_cmp(&(o_float))
-                }
-                Value::Float(o) => n.partial_cmp(o),
+            Value::Float(this) => match other {
+                Value::Int(other) => this.partial_cmp(&int_type_to_float_type(other)),
+                Value::Float(other) => this.partial_cmp(other),
                 _ => None,
             },
             Value::NativeFunc(_) => None,
+            Value::NativeClosure(_) => None,
             Value::Lambda(_) => None,
             Value::Macro(_) => None,
             Value::List(_) => None,
             Value::HashMap(_) => None,
             Value::Foreign(_) => None,
             Value::TailCall { func: _, args: _ } => None,
+        }
+    }
+}
+
+/// Convert whatever int type we're using to whatever float type we're using
+fn int_type_to_float_type(i: &IntType) -> FloatType {
+    cfg_if! {
+        if #[cfg(feature = "bigint")] {
+            cfg_if! {
+                if #[cfg(feature = "f64")] {
+                    return i.to_f64().unwrap_or(f64::NAN);
+                } else {
+                    return i.to_f32().unwrap_or(f32::NAN);
+                }
+            }
+        } else {
+            return *i as FloatType;
         }
     }
 }
@@ -496,6 +487,7 @@ impl std::hash::Hash for Value {
             Value::List(x) => x.hash(state),
             Value::HashMap(x) => x.as_ptr().hash(state),
             Value::NativeFunc(x) => std::ptr::hash(x, state),
+            Value::NativeClosure(x) => std::ptr::hash(x, state),
             Value::Lambda(x) => x.hash(state),
             Value::Macro(x) => x.hash(state),
             Value::Foreign(x) => std::ptr::hash(x, state),

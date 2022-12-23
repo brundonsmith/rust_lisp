@@ -118,6 +118,30 @@ fn hash_map() {
     assert_eq!(result, lisp! { "1 4" });
 }
 
+#[test]
+fn number_cast_comparisons() {
+    assert_eq!(
+        eval_ast(lisp! {
+            (< 0 0.1)
+        }),
+        lisp! { T }
+    );
+
+    assert_eq!(
+        eval_ast(lisp! {
+            (< { Value::Int((-2).into()) } 1)
+        }),
+        lisp! { T }
+    );
+
+    assert_eq!(
+        eval_ast(lisp! {
+            (>= { Value::Float(-2.1) } 1)
+        }),
+        lisp! { F }
+    );
+}
+
 #[cfg(test)]
 fn eval_ast(ast: Value) -> Value {
     let env = Rc::new(RefCell::new(default_env()));

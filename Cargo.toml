@@ -31,5 +31,6 @@ f64 = []
 
 [dependencies]
 cfg-if = "1.0"
+libm = { version = "0.2", optional = true }
 num-traits = { version = "0.2", optional = true }
 num-bigint = { version = "0.4", optional = true }

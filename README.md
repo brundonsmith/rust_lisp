@@ -157,6 +157,10 @@ these cannot be handled correctly by `lisp! {}`. So it's recommended that you
 use underscores in your identifiers instead, which the macro will be able to
 handle correctly. The built-in functions follow this convention.
 
+NOTE 2: The macro cannot handle the syntax for negative numbers! To get around 
+this you can insert negative numbers as Rust expressions using the escape 
+syntax, or you can parse your code as a string.
+
 # The `ForeignValue` trait
 
 Sometimes if you're wanting to script an existing system, you don't want to
