@@ -395,26 +395,48 @@ pub fn default_env() -> Env {
     env.define(
         Symbol::from("*"),
         Value::NativeFunc(|_env, args| {
-            let a = require_arg("*", &args, 0)?;
-            let b = require_arg("*", &args, 1)?;
+            let mut product = Value::Int(1);
 
-            if let (Ok(a), Ok(b)) = (
-                TryInto::<IntType>::try_into(a),
-                TryInto::<IntType>::try_into(b),
-            ) {
-                return Ok(Value::Int(a * b));
+            for arg in args {
+                product = match arg {
+                    Value::Int(x) => match product {
+                        Value::Int(t) => Value::Int(t * x.clone()),
+                        Value::Float(t) => {
+                            cfg_if! {
+                                if #[cfg(feature = "bigint")] {
+                                    Value::Float(t * x.to_i128().unwrap() as FloatType)
+                                } else {
+                                    Value::Float(t * *x as FloatType)
+                                }
+                            }
+                        }
+                        _ => unreachable!("Will only ever assign int/float to `product`"),
+                    },
+                    Value::Float(x) => match product {
+                        Value::Int(t) => {
+                            cfg_if! {
+                                if #[cfg(feature = "bigint")] {
+                                    Value::Float(t.to_i128().unwrap() as FloatType * *x)
+                                } else {
+                                    Value::Float(t as FloatType * *x)
+                                }
+                            }
+                        }
+                        Value::Float(t) => Value::Float(t * *x),
+                        _ => unreachable!("Will only ever assign int/float to `product`"),
+                    },
+                    _ => {
+                        return Err(RuntimeError {
+                            msg: format!(
+                                "Function \"*\" requires arguments to be numbers; found {}",
+                                arg
+                            ),
+                        });
+                    }
+                };
             }
 
-            if let (Ok(a), Ok(b)) = (
-                TryInto::<FloatType>::try_into(a),
-                TryInto::<FloatType>::try_into(b),
-            ) {
-                return Ok(Value::Float(a * b));
-            }
-
-            Err(RuntimeError {
-                msg: String::from("Function \"*\" requires arguments to be numbers"),
-            })
+            Ok(product)
         }),
     );
 
