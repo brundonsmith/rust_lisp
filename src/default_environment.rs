@@ -395,12 +395,6 @@ pub fn default_env() -> Env {
     env.define(
         Symbol::from("*"),
         Value::NativeFunc(|_env, args| {
-            if args.len() < 2 {
-                return Err(RuntimeError {
-                    msg: String::from("Function \"*\" requires at least two numeric arguments"),
-                });
-            }
-
             let mut product = Value::Int(1);
 
             for arg in args {
