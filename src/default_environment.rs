@@ -238,15 +238,23 @@ pub fn default_env() -> Env {
             let start = require_typed_arg::<IntType>("range", &args, 0)?;
             let end = require_typed_arg::<IntType>("range", &args, 1)?;
 
-            cfg_if! {
-                if #[cfg(feature = "bigint")] {
-                    let range = bigint_range(start, end);
-                } else {
-                    let range = start..end;
-                }
-            }
+            let mut current = start;
 
-            Ok(Value::List(range.map(Value::from).collect()))
+            Ok(Value::List(
+                std::iter::from_fn(move || {
+                    if current == end {
+                        None
+                    } else {
+                        let res = Some(current.clone());
+
+                        current += 1;
+
+                        res
+                    }
+                })
+                .map(Value::from)
+                .collect(),
+            ))
         }),
     );
 
@@ -482,26 +490,4 @@ pub fn default_env() -> Env {
     );
 
     env
-}
-
-cfg_if! {
-    if #[cfg(feature = "bigint")] {
-        use num_bigint::BigInt;
-
-        fn bigint_range(start: BigInt, end: BigInt) -> impl Iterator<Item=BigInt> {
-            let mut current = start;
-
-            std::iter::from_fn(move || {
-                if current == end {
-                    None
-                } else {
-                    let res = Some(current.clone());
-
-                    current += 1;
-
-                    res
-                }
-            })
-        }
-    }
 }
