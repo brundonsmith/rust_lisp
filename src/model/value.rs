@@ -1,4 +1,5 @@
 use cfg_if::cfg_if;
+use std::any::Any;
 use std::ops::{Add, Div, Mul, Sub};
 use std::rc::Rc;
 use std::{cell::RefCell, cmp::Ordering};
@@ -42,9 +43,8 @@ pub enum Value {
     /// A lisp macro defined in lisp
     Macro(Lambda),
 
-    /// A reference to a foreign value (struct, enum, etc) implementing the
-    /// ForeignValue trait, which can receive commands via lisp code
-    Foreign(ForeignValueRc),
+    /// A reference to a foreign value (struct, enum, etc)
+    Foreign(Rc<dyn Any>),
 
     /// A tail-call that has yet to be executed. Internal use only!
     TailCall {
@@ -53,28 +53,11 @@ pub enum Value {
     },
 }
 
-/// Implement this trait for a struct or enum, and then you'll be able to hold
-/// references to it in Value::Foreign and interact with it from lisp code via
-/// the `cmd` form
-pub trait ForeignValue {
-    fn command(
-        &mut self,
-        env: Rc<RefCell<Env>>,
-        command: &str,
-        args: &[Value],
-    ) -> Result<Value, RuntimeError> {
-        Ok(Value::NIL)
-    }
-}
-
 /// A Rust function that is to be called from lisp code
 pub type NativeFunc = fn(env: Rc<RefCell<Env>>, args: Vec<Value>) -> Result<Value, RuntimeError>;
 
 /// Alias for the contents of Value::HashMap
 pub type HashMapRc = Rc<RefCell<HashMap<Value, Value>>>;
-
-/// Alias for the contents of Value::Foreign
-pub type ForeignValueRc = Rc<RefCell<dyn ForeignValue>>;
 
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
@@ -260,7 +243,7 @@ impl From<HashMapRc> for Value {
     }
 }
 
-impl<'a> TryFrom<&'a Value> for &'a ForeignValueRc {
+impl<'a> TryFrom<&'a Value> for &'a Rc<dyn Any> {
     type Error = RuntimeError;
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
@@ -273,8 +256,8 @@ impl<'a> TryFrom<&'a Value> for &'a ForeignValueRc {
     }
 }
 
-impl From<ForeignValueRc> for Value {
-    fn from(i: ForeignValueRc) -> Self {
+impl From<Rc<dyn Any>> for Value {
+    fn from(i: Rc<dyn Any>) -> Self {
         Value::Foreign(i)
     }
 }

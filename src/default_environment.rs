@@ -5,9 +5,7 @@ use crate::{
     utils::{require_arg, require_typed_arg},
 };
 use cfg_if::cfg_if;
-use std::{
-    cell::RefCell, collections::HashMap, convert::TryInto, os::unix::prelude::IntoRawFd, rc::Rc,
-};
+use std::{cell::RefCell, collections::HashMap, convert::TryInto, rc::Rc};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;

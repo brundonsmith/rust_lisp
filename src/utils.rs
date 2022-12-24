@@ -1,6 +1,6 @@
-use crate::model::{
-    FloatType, ForeignValueRc, HashMapRc, IntType, List, RuntimeError, Symbol, Value,
-};
+use std::{any::Any, rc::Rc};
+
+use crate::model::{FloatType, HashMapRc, IntType, List, RuntimeError, Symbol, Value};
 
 /// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`
 /// and err if there isn't one.
@@ -82,7 +82,7 @@ impl TypeName for &HashMapRc {
     }
 }
 
-impl TypeName for &ForeignValueRc {
+impl TypeName for &Rc<dyn Any> {
     fn get_name() -> &'static str {
         "foreign value"
     }
