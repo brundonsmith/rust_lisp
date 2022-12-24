@@ -161,50 +161,23 @@ NOTE 2: The macro cannot handle the syntax for negative numbers! To get around
 this you can insert negative numbers as Rust expressions using the escape 
 syntax, or you can parse your code as a string.
 
-# The `ForeignValue` trait
+# `Value::Foreign()`
 
 Sometimes if you're wanting to script an existing system, you don't want to
 convert your data to and from lisp-compatible values. This can be tedious, and
-more importantly super inefficient.
+inefficient.
 
 If you have some type - say a struct - that you want to be able to work with
-directly from your lisp code, you can implement `ForeignValue` for it:
+directly from your lisp code, you can place it in a `Value::Foreign()` which
+allows lisp code to pass it around and (native) lisp functions to operate on it:
 
 ```rust
 struct Foo {
     some_prop: f32,
 }
-
-impl ForeignValue for Foo {
-    fn command(
-        &mut self,
-        env: Rc<RefCell<Env>>,
-        command: &str,
-        args: &[Value],
-    ) -> Result<Value, RuntimeError> {
-        match command {
-            "get_some_prop" => Ok(self.some_prop.into()),
-            "set_some_prop" => {
-                let new_value = require_typed_arg::<FloatType>("set_some_prop", args, 0)?;
-
-                self.some_prop = new_value;
-
-                Ok(new_value.into())
-            }
-            _ => Err(RuntimeError {
-                msg: format!("Unexpected command {}", command),
-            }),
-        }
-    }
-}
 ```
-
-And then call out to it from your lisp code:
-
-```lisp
-(set x (cmd my_foo get_some_prop))
-
-(cmd my_foo set_some_prop 3.14)
+```rust
+let v: Value = Value::Foreign(Rc::new(Foo { some_prop: 1.0 }));
 ```
 
 # Included functionality
