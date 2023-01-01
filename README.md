@@ -1,4 +1,4 @@
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/brundonsmith/rust_lisp/Rust)](https://github.com/brundonsmith/rust_lisp/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/brundonsmith/rust_lisp/rust.yml?branch=master)](https://github.com/brundonsmith/rust_lisp/actions)
 [![rust_lisp shield](https://img.shields.io/crates/v/rust_lisp)](https://crates.io/crates/rust_lisp)
 [![docs.rs](https://img.shields.io/docsrs/rust_lisp/latest)](https://docs.rs/rust_lisp/latest/rust_lisp/)
 
