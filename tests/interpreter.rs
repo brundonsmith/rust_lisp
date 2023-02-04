@@ -2,10 +2,9 @@ use rust_lisp::{
     default_env,
     interpreter::eval,
     lisp,
-    model::{FloatType, IntType, RuntimeError, Symbol, Value},
+    model::{reference, FloatType, IntType, RuntimeError, Symbol, Value},
     parser::parse,
 };
-use std::{cell::RefCell, rc::Rc};
 
 #[test]
 fn eval_basic_expression() {
@@ -273,7 +272,7 @@ fn lambda_err() {
     .next()
     .unwrap()
     .unwrap();
-    let env = Rc::new(RefCell::new(default_env()));
+    let env = reference::new(default_env());
     let result = eval(env, &ast);
 
     assert_eq!(
@@ -365,7 +364,7 @@ fn short_circuit() {
 
 #[test]
 fn native_closure() {
-    let my_state = Rc::new(RefCell::new(0));
+    let my_state = reference::new(0);
 
     let expression = lisp! {
       (begin
@@ -378,25 +377,61 @@ fn native_closure() {
     let my_state_closure = my_state.clone();
     env.define(
         Symbol::from("my_closure"),
-        Value::NativeClosure(Rc::new(RefCell::new(
+        Value::NativeClosure(reference::new(
             move |_env, _args| -> Result<Value, RuntimeError> {
-                let current = *my_state_closure.borrow();
-                my_state_closure.replace(current + 1);
+                let current = *reference::borrow(&my_state_closure);
+                reference::replace(&my_state_closure, current + 1);
                 Ok(Value::NIL)
             },
-        ))),
+        )),
     );
-    let env = Rc::new(RefCell::new(env));
+    let env = reference::new(env);
 
     eval(env, &expression).unwrap();
 
-    assert_eq!(*my_state.borrow(), 3);
+    assert_eq!(*reference::borrow(&my_state), 3);
 }
+
+// #[cfg(feature = "arc")]
+// #[test]
+// fn threaded_native_closure() {
+//     let my_state = reference::new(0);
+
+//     let mut env = default_env();
+
+//     let my_state_closure = my_state.clone();
+//     std::thread::spawn(move || {
+//         env.define(
+//             Symbol::from("my_closure"),
+//             Value::NativeClosure(reference::new(
+//                 move |_env, _args| -> Result<Value, RuntimeError> {
+//                     let mut current = my_state_closure.lock().unwrap();
+//                     *current = *current + 1;
+//                     Ok(Value::NIL)
+//                 },
+//             )),
+//         );
+//         let env = reference::new(env);
+
+//         let expression = lisp! {
+//           (begin
+//             (my_closure)
+//             (my_closure)
+//             (my_closure))
+//         };
+
+//         eval(env, &expression).unwrap();
+//     })
+//     .join()
+//     .unwrap();
+
+//     assert_eq!(*my_state.lock().unwrap(), 3);
+// }
 
 #[cfg(test)]
 fn eval_str(source: &str) -> Value {
     let ast = parse(source).next().unwrap().unwrap();
-    let env = Rc::new(RefCell::new(default_env()));
+    let env = reference::new(default_env());
     return eval(env, &ast).unwrap();
 }
 

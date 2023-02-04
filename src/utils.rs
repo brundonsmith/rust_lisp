@@ -1,6 +1,9 @@
-use std::{any::Any, rc::Rc};
+use std::any::Any;
 
-use crate::model::{FloatType, HashMapRc, IntType, List, RuntimeError, Symbol, Value};
+use crate::model::{
+    reference::ImmReference, FloatType, HashMapReference, IntType, List, RuntimeError, Symbol,
+    Value,
+};
 
 /// Given a `Value` assumed to be a `Value::List()`, grab the item at `index`
 /// and err if there isn't one.
@@ -76,13 +79,13 @@ impl TypeName for &List {
     }
 }
 
-impl TypeName for &HashMapRc {
+impl TypeName for &HashMapReference {
     fn get_name() -> &'static str {
         "hash map"
     }
 }
 
-impl TypeName for &Rc<dyn Any> {
+impl TypeName for &ImmReference<dyn Any> {
     fn get_name() -> &'static str {
         "foreign value"
     }

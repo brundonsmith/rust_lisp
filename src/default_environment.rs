@@ -1,11 +1,11 @@
 use crate::{
     interpreter::eval,
     lisp,
-    model::{Env, HashMapRc, IntType, List, RuntimeError, Symbol, Value},
+    model::{reference, Env, HashMapReference, IntType, List, RuntimeError, Symbol, Value},
     utils::{require_arg, require_typed_arg},
 };
 use cfg_if::cfg_if;
-use std::{cell::RefCell, collections::HashMap, convert::TryInto, rc::Rc};
+use std::{collections::HashMap, convert::TryInto};
 cfg_if! {
     if #[cfg(feature = "bigint")] {
         use num_traits::ToPrimitive;
@@ -278,18 +278,17 @@ pub fn default_env() -> Env {
                 }
             }
 
-            Ok(Value::HashMap(Rc::new(RefCell::new(hash))))
+            Ok(Value::HashMap(reference::new(hash)))
         }),
     );
 
     env.define(
         Symbol::from("hash_get"),
         Value::NativeFunc(|_env, args| {
-            let hash = require_typed_arg::<&HashMapRc>("hash_get", &args, 0)?;
+            let hash = require_typed_arg::<&HashMapReference>("hash_get", &args, 0)?;
             let key = require_arg("hash_get", &args, 1)?;
 
-            Ok(hash
-                .borrow()
+            Ok(reference::borrow(hash)
                 .get(key)
                 .map(|v| v.clone())
                 .unwrap_or(Value::NIL))
@@ -299,11 +298,11 @@ pub fn default_env() -> Env {
     env.define(
         Symbol::from("hash_set"),
         Value::NativeFunc(|_env, args| {
-            let hash = require_typed_arg::<&HashMapRc>("hash_set", &args, 0)?;
+            let hash = require_typed_arg::<&HashMapReference>("hash_set", &args, 0)?;
             let key = require_arg("hash_set", &args, 1)?;
             let value = require_arg("hash_set", &args, 2)?;
 
-            hash.borrow_mut().insert(key.clone(), value.clone());
+            reference::borrow_mut(hash).insert(key.clone(), value.clone());
 
             Ok(Value::HashMap(hash.clone()))
         }),

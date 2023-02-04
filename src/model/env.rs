@@ -1,14 +1,15 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::{collections::HashMap, fmt::Debug};
 
-use super::{RuntimeError, Symbol, Value};
+use super::{
+    reference::{self, Reference},
+    RuntimeError, Symbol, Value,
+};
 
 /// An environment of symbol bindings. Used for the base environment, for
 /// closures, for `let` statements, for function arguments, etc.
 #[derive(Debug)]
 pub struct Env {
-    parent: Option<Rc<RefCell<Env>>>,
+    parent: Option<Reference<Env>>,
     entries: HashMap<Symbol, Value>,
 }
 
@@ -22,7 +23,7 @@ impl Env {
     }
 
     /// Create a new environment extending the given environment
-    pub fn extend(parent: Rc<RefCell<Env>>) -> Self {
+    pub fn extend(parent: Reference<Env>) -> Self {
         Self {
             parent: Some(parent),
             entries: HashMap::new(),
@@ -35,7 +36,7 @@ impl Env {
         if let Some(val) = self.entries.get(&key) {
             Some(val.clone()) // clone the Rc
         } else if let Some(parent) = &self.parent {
-            parent.borrow().get(key)
+            reference::borrow(parent).get(key)
         } else {
             None
         }
@@ -53,7 +54,7 @@ impl Env {
             self.entries.insert(key, value);
             Ok(())
         } else if let Some(parent) = &self.parent {
-            parent.borrow_mut().set(key, value)
+            reference::borrow_mut(parent).set(key, value)
         } else {
             Err(RuntimeError {
                 msg: format!("Tried to set value of undefined symbol \"{}\"", key),
@@ -66,7 +67,7 @@ impl Env {
         if self.entries.contains_key(key) {
             self.entries.remove(key);
         } else if let Some(parent) = &self.parent {
-            parent.borrow_mut().undefine(key);
+            reference::borrow_mut(parent).undefine(key);
         }
     }
 
@@ -82,10 +83,7 @@ impl Env {
 
         if let Some(parent) = &self.parent {
             output.push_str("\n\n");
-            parent
-                .as_ref()
-                .borrow()
-                .display_recursive(output, depth + 1);
+            reference::borrow(parent).display_recursive(output, depth + 1);
         }
 
         output.push('\n');

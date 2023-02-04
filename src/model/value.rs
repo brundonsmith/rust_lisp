@@ -1,8 +1,7 @@
 use cfg_if::cfg_if;
 use std::any::Any;
+use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Sub};
-use std::rc::Rc;
-use std::{cell::RefCell, cmp::Ordering};
 use std::{collections::HashMap, fmt::Debug};
 
 cfg_if! {
@@ -12,7 +11,8 @@ cfg_if! {
     }
 }
 
-use super::{Env, FloatType, IntType, Lambda, List, RuntimeError, Symbol};
+use super::reference::{self, ImmReference};
+use super::{reference::Reference, Env, FloatType, IntType, Lambda, List, RuntimeError, Symbol};
 use crate::lisp;
 
 /// `Value` encompasses all possible Lisp values, including atoms, lists, and
@@ -26,16 +26,14 @@ pub enum Value {
     String(String),
     Symbol(Symbol),
     List(List),
-    HashMap(HashMapRc),
+    HashMap(HashMapReference),
 
     /// A native Rust function that can be called from lisp code
     NativeFunc(NativeFunc),
 
     /// A native Rust closure that can be called from lisp code (the closure
     /// can capture things from its Rust environment)
-    NativeClosure(
-        Rc<RefCell<dyn FnMut(Rc<RefCell<Env>>, Vec<Value>) -> Result<Value, RuntimeError>>>,
-    ),
+    NativeClosure(Reference<dyn FnMut(Reference<Env>, Vec<Value>) -> Result<Value, RuntimeError>>),
 
     /// A lisp function defined in lisp
     Lambda(Lambda),
@@ -44,20 +42,22 @@ pub enum Value {
     Macro(Lambda),
 
     /// A reference to a foreign value (struct, enum, etc)
-    Foreign(Rc<dyn Any>),
+    Foreign(Foreign),
 
     /// A tail-call that has yet to be executed. Internal use only!
     TailCall {
-        func: Rc<Value>,
+        func: ImmReference<Value>,
         args: Vec<Value>,
     },
 }
 
+pub type Foreign = ImmReference<dyn Any>;
+
 /// A Rust function that is to be called from lisp code
-pub type NativeFunc = fn(env: Rc<RefCell<Env>>, args: Vec<Value>) -> Result<Value, RuntimeError>;
+pub type NativeFunc = fn(env: Reference<Env>, args: Vec<Value>) -> Result<Value, RuntimeError>;
 
 /// Alias for the contents of Value::HashMap
-pub type HashMapRc = Rc<RefCell<HashMap<Value, Value>>>;
+pub type HashMapReference = Reference<HashMap<Value, Value>>;
 
 impl Value {
     pub const NIL: Value = Value::List(List::NIL);
@@ -71,7 +71,7 @@ impl Value {
             Value::True => "T",
             Value::False => "F",
             Value::String(_) => "string",
-            Value::List(List::NIL) => "nil",
+            Value::List(list) if list.is_nil() => "nil",
             Value::List(_) => "list",
             Value::HashMap(_) => "hash map",
             Value::Int(_) => "integer",
@@ -218,7 +218,7 @@ impl From<Lambda> for Value {
     }
 }
 
-impl<'a> TryFrom<&'a Value> for &'a HashMapRc {
+impl<'a> TryFrom<&'a Value> for &'a HashMapReference {
     type Error = RuntimeError;
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
@@ -233,17 +233,17 @@ impl<'a> TryFrom<&'a Value> for &'a HashMapRc {
 
 impl From<HashMap<Value, Value>> for Value {
     fn from(i: HashMap<Value, Value>) -> Self {
-        Value::HashMap(Rc::new(RefCell::new(i)))
+        Value::HashMap(reference::new(i))
     }
 }
 
-impl From<HashMapRc> for Value {
-    fn from(i: HashMapRc) -> Self {
+impl From<HashMapReference> for Value {
+    fn from(i: HashMapReference) -> Self {
         Value::HashMap(i)
     }
 }
 
-impl<'a> TryFrom<&'a Value> for &'a Rc<dyn Any> {
+impl<'a> TryFrom<&'a Value> for &'a Foreign {
     type Error = RuntimeError;
 
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
@@ -256,8 +256,8 @@ impl<'a> TryFrom<&'a Value> for &'a Rc<dyn Any> {
     }
 }
 
-impl From<Rc<dyn Any>> for Value {
-    fn from(i: Rc<dyn Any>) -> Self {
+impl From<Foreign> for Value {
+    fn from(i: Foreign) -> Self {
         Value::Foreign(i)
     }
 }
@@ -274,7 +274,7 @@ impl std::fmt::Display for Value {
             Value::String(this) => write!(f, "\"{}\"", this),
             Value::List(this) => write!(f, "{}", this),
             Value::HashMap(this) => {
-                let borrowed = this.borrow();
+                let borrowed = reference::borrow(this);
                 let entries = std::iter::once(lisp! { hash }).chain(
                     borrowed
                         .iter()
@@ -334,8 +334,16 @@ impl PartialEq for Value {
             (Value::Int(this), Value::Int(other)) => this == other,
             (Value::Float(this), Value::Float(other)) => this.to_bits() == other.to_bits(),
             (Value::Symbol(this), Value::Symbol(other)) => this == other,
-            (Value::HashMap(this), Value::HashMap(other)) => Rc::ptr_eq(this, other),
-            (Value::Foreign(this), Value::Foreign(other)) => Rc::ptr_eq(this, other),
+            (Value::HashMap(this), Value::HashMap(other)) => reference::ptr_eq(this, other),
+            (Value::Foreign(this), Value::Foreign(other)) => {
+                cfg_if! {
+                    if #[cfg(feature = "arc")] {
+                        std::sync::Arc::ptr_eq(this, other)
+                    }else {
+                        std::rc::Rc::ptr_eq(this, other)
+                    }
+                }
+            }
             (
                 Value::TailCall {
                     func: this_func,
@@ -540,7 +548,7 @@ impl std::hash::Hash for Value {
             Value::String(x) => x.hash(state),
             Value::Symbol(x) => x.hash(state),
             Value::List(x) => x.hash(state),
-            Value::HashMap(x) => x.as_ptr().hash(state),
+            Value::HashMap(x) => reference::as_ptr(x).hash(state),
             Value::NativeFunc(x) => std::ptr::hash(x, state),
             Value::NativeClosure(x) => std::ptr::hash(x, state),
             Value::Lambda(x) => x.hash(state),

@@ -13,12 +13,13 @@ mod macros;
 
 use model::Env;
 use std::io::{self, prelude::*};
-use std::{cell::RefCell, rc::Rc};
+
+use crate::model::reference;
 
 // 🦀 I am all over this project!
 /// Starts a REPL prompt at stdin/stdout. **This will block the current thread.**
 pub fn start_repl(env: Option<Env>) {
-    let env_rc = Rc::new(RefCell::new(env.unwrap_or_else(default_env)));
+    let env_rc = reference::new(env.unwrap_or_else(default_env));
 
     print!("> ");
     io::stdout().flush().unwrap();

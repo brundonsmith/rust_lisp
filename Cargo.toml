@@ -29,6 +29,9 @@ i8 = []
 # Use f64 for Value::Float, if unset, use f32
 f64 = []
 
+# Internally use Arc (and Mutex as needed), to allow use across threads
+arc = []
+
 [dependencies]
 cfg-if = "1.0"
 libm = { version = "0.2", optional = true }

@@ -1,25 +1,27 @@
 use crate::{
-    model::{Env, Lambda, List, RuntimeError, Symbol, Value},
+    model::{
+        reference::{self, Reference},
+        Env, Lambda, List, RuntimeError, Symbol, Value,
+    },
     utils::{require_arg, require_typed_arg},
 };
-use std::{cell::RefCell, rc::Rc};
 
 /// Evaluate a single Lisp expression in the context of a given environment.
-pub fn eval(env: Rc<RefCell<Env>>, expression: &Value) -> Result<Value, RuntimeError> {
+pub fn eval(env: Reference<Env>, expression: &Value) -> Result<Value, RuntimeError> {
     eval_inner(env, expression, Context::new())
 }
 
 /// Evaluate a series of s-expressions. Each expression is evaluated in
 /// order and the final one's return value is returned.
 pub fn eval_block(
-    env: Rc<RefCell<Env>>,
+    env: Reference<Env>,
     clauses: impl Iterator<Item = Value>,
 ) -> Result<Value, RuntimeError> {
     eval_block_inner(env, clauses, Context::new())
 }
 
 fn eval_block_inner(
-    env: Rc<RefCell<Env>>,
+    env: Reference<Env>,
     clauses: impl Iterator<Item = Value>,
     context: Context,
 ) -> Result<Value, RuntimeError> {
@@ -55,7 +57,7 @@ fn eval_block_inner(
 /// eligible to be the tail-call based on their position. A future refactor hopes
 /// to make things a little more semantic.
 fn eval_inner(
-    env: Rc<RefCell<Env>>,
+    env: Reference<Env>,
     expression: &Value,
     context: Context,
 ) -> Result<Value, RuntimeError> {
@@ -79,9 +81,11 @@ fn eval_inner(
 
     match expression {
         // look up symbol
-        Value::Symbol(symbol) => env.borrow().get(symbol).ok_or_else(|| RuntimeError {
-            msg: format!("\"{}\" is not defined", symbol),
-        }),
+        Value::Symbol(symbol) => reference::borrow(&env)
+            .get(symbol)
+            .ok_or_else(|| RuntimeError {
+                msg: format!("\"{}\" is not defined", symbol),
+            }),
 
         // s-expression
         Value::List(list) if *list != List::NIL => {
@@ -104,9 +108,9 @@ fn eval_inner(
                     let value = eval_inner(env.clone(), value_expr, context.found_tail(true))?;
 
                     if keyword == "define" {
-                        env.borrow_mut().define(symbol.clone(), value.clone());
+                        reference::borrow_mut(&env).define(symbol.clone(), value.clone());
                     } else {
-                        env.borrow_mut().set(symbol.clone(), value.clone())?;
+                        reference::borrow_mut(&env).set(symbol.clone(), value.clone())?;
                     }
 
                     Ok(value)
@@ -118,7 +122,7 @@ fn eval_inner(
                     let symbol = require_typed_arg::<&Symbol>(keyword, args, 0)?;
                     let argnames_list = require_typed_arg::<&List>(keyword, args, 1)?;
                     let argnames = value_to_argnames(argnames_list.clone())?;
-                    let body = Rc::new(Value::List(list.cdr().cdr().cdr()));
+                    let body = reference::new_imm(Value::List(list.cdr().cdr().cdr()));
 
                     let lambda = Value::Macro(Lambda {
                         closure: env.clone(),
@@ -126,7 +130,7 @@ fn eval_inner(
                         body,
                     });
 
-                    env.borrow_mut().define(symbol.clone(), lambda);
+                    reference::borrow_mut(&env).define(symbol.clone(), lambda);
 
                     Ok(Value::NIL)
                 }
@@ -137,7 +141,7 @@ fn eval_inner(
                     let symbol = require_typed_arg::<&Symbol>(keyword, args, 0)?;
                     let argnames_list = require_typed_arg::<&List>(keyword, args, 1)?;
                     let argnames = value_to_argnames(argnames_list.clone())?;
-                    let body = Rc::new(Value::List(list.cdr().cdr().cdr()));
+                    let body = reference::new_imm(Value::List(list.cdr().cdr().cdr()));
 
                     let lambda = Value::Lambda(Lambda {
                         closure: env.clone(),
@@ -145,7 +149,7 @@ fn eval_inner(
                         body,
                     });
 
-                    env.borrow_mut().define(symbol.clone(), lambda);
+                    reference::borrow_mut(&env).define(symbol.clone(), lambda);
 
                     Ok(Value::NIL)
                 }
@@ -155,7 +159,7 @@ fn eval_inner(
 
                     let argnames_list = require_typed_arg::<&List>(keyword, args, 0)?;
                     let argnames = value_to_argnames(argnames_list.clone())?;
-                    let body = Rc::new(Value::List(list.cdr().cdr()));
+                    let body = reference::new_imm(Value::List(list.cdr().cdr()));
 
                     Ok(Value::Lambda(Lambda {
                         closure: env,
@@ -165,7 +169,7 @@ fn eval_inner(
                 }
 
                 Value::Symbol(Symbol(keyword)) if keyword == "let" => {
-                    let let_env = Rc::new(RefCell::new(Env::extend(env)));
+                    let let_env = reference::new(Env::extend(env));
 
                     let args = &list.cdr().into_iter().collect::<Vec<Value>>();
 
@@ -184,7 +188,7 @@ fn eval_inner(
                         let expr = &decl_cons.cdr().car()?;
 
                         let result = eval_inner(let_env.clone(), expr, context.found_tail(true))?;
-                        let_env.borrow_mut().define(symbol.clone(), result);
+                        reference::borrow_mut(&let_env).define(symbol.clone(), result);
                     }
 
                     let body = &Value::List(list.cdr().cdr());
@@ -284,7 +288,7 @@ fn eval_inner(
 
                         if !context.found_tail && context.in_func {
                             Ok(Value::TailCall {
-                                func: Rc::new(func_or_macro),
+                                func: reference::new_imm(func_or_macro),
                                 args,
                             })
                         } else {
@@ -329,14 +333,14 @@ fn value_to_argnames(argnames: List) -> Result<Vec<Symbol>, RuntimeError> {
 /// so that tail calls can be evaluated without just returning themselves
 /// as-is as a tail-call.
 fn call_function_or_macro(
-    env: Rc<RefCell<Env>>,
+    env: Reference<Env>,
     func: &Value,
     args: Vec<Value>,
 ) -> Result<Value, RuntimeError> {
     if let Value::NativeFunc(func) = func {
         func(env, args)
     } else if let Value::NativeClosure(closure) = func {
-        closure.borrow_mut()(env, args)
+        reference::borrow_mut(closure)(env, args)
     } else {
         let lambda = match func {
             Value::Lambda(lamb) => Some(lamb),
@@ -363,7 +367,7 @@ fn call_function_or_macro(
             // evaluate each line of body
             let clauses: &List = lambda.body.as_ref().try_into()?;
             eval_block_inner(
-                Rc::new(RefCell::new(arg_env)),
+                reference::new(arg_env),
                 clauses.into_iter(),
                 Context {
                     found_tail: false,

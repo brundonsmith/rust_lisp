@@ -23,16 +23,15 @@ rust_lisp = "0.18.0"
 ```
 
 ```rust
-use std::{cell::RefCell, rc::Rc};
-
 use rust_lisp::default_env;
 use rust_lisp::parser::parse;
 use rust_lisp::interpreter::eval;
+use rust_lisp::model::reference;
 
 fn main() {
 
     // create a base environment
-    let env = Rc::new(RefCell::new(default_env()));
+    let env = reference::new(default_env());
 
     // parse into an iterator of syntax trees (one for each root)
     let mut ast_iter = parse("(+ \"Hello \" \"world!\")");
@@ -74,7 +73,7 @@ an entry to the environment is also how you would expose your Rust functions to
 your scripts, which can take the form of either regular functions or closures:
 
 ```rust
-fn my_func(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError> {
+fn my_func(env: Reference<Env>, args: &Vec<Value>) -> Result<Value, RuntimeError> {
   println!("Hello world!");
   return Ok(Value::NIL);
 }
@@ -101,7 +100,7 @@ env.borrow_mut().define(
 In either case, a native function must have the following function signature:
 
 ```rust
-type NativeFunc = fn(env: Rc<RefCell<Env>>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
+type NativeFunc = fn(env: Reference<Env>, args: &Vec<Value>) -> Result<Value, RuntimeError>;
 ```
 
 The first argument is the environment at the time and place of calling (closures
@@ -177,7 +176,7 @@ struct Foo {
 }
 ```
 ```rust
-let v: Value = Value::Foreign(Rc::new(Foo { some_prop: 1.0 }));
+let v: Value = Value::Foreign(reference::new_imm(Foo { some_prop: 1.0 }));
 ```
 
 # Included functionality
