@@ -36,6 +36,7 @@ enum ParseTree {
     List(Vec<ParseTree>),
     Quoted(Box<ParseTree>),
     Comma(Box<ParseTree>),
+    CommaSplice(Box<ParseTree>),
 }
 
 impl ParseTree {
@@ -49,6 +50,7 @@ impl ParseTree {
             ),
             ParseTree::Quoted(inner) => lisp! { (quote {inner.into_value()}) },
             ParseTree::Comma(inner) => lisp! { (comma {inner.into_value()}) },
+            ParseTree::CommaSplice(inner) => lisp! { (splice {inner.into_value()}) },
         }
     }
 }
@@ -120,6 +122,7 @@ fn parse_list(code: &str, index: usize) -> ParseResult {
 fn parse_atom(code: &str, index: usize) -> ParseResult {
     for func in [
         parse_quoted,
+        parse_comma_splice,
         parse_comma,
         parse_nil,
         parse_false,
@@ -145,6 +148,20 @@ fn parse_quoted(code: &str, index: usize) -> ParseResult {
     if let Ok(ParsedAndIndex { parsed, index }) = res {
         Some(Ok(ParsedAndIndex {
             parsed: ParseTree::Quoted(Box::new(parsed)),
+            index,
+        }))
+    } else {
+        Some(res)
+    }
+}
+
+fn parse_comma_splice(code: &str, index: usize) -> ParseResult {
+    let index = consume(code, index, ",@")?;
+    let res = parse_expression(code, index)?;
+
+    if let Ok(ParsedAndIndex { parsed, index }) = res {
+        Some(Ok(ParsedAndIndex {
+            parsed: ParseTree::CommaSplice(Box::new(parsed)),
             index,
         }))
     } else {
