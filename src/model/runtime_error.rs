@@ -12,8 +12,4 @@ impl std::fmt::Display for RuntimeError {
     }
 }
 
-impl std::error::Error for RuntimeError {
-    fn description(&self) -> &str {
-        &self.msg
-    }
-}
+impl std::error::Error for RuntimeError {}

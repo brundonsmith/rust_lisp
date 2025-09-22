@@ -68,6 +68,8 @@ impl Display for ParseError {
     }
 }
 
+impl std::error::Error for ParseError {}
+
 #[derive(Clone, Debug)]
 struct ParsedAndIndex {
     pub parsed: ParseTree,
