@@ -66,8 +66,31 @@ fn eval_inner(
                     // do nothing, handle it down below
                 }
                 _ => {
+                    // @cesar - this is modified to support splicing, with a flat map feature.
                     return list
                         .into_iter()
+                        .map(|el| -> Result<Vec<Value>, RuntimeError> {
+                            match el {
+                                Value::List(x) if x != List::NIL => match &x.car() {
+                                    Ok(Value::Symbol(Symbol(keyword))) if keyword == "splice" => {
+                                        let arg1 = x.cdr().car()?;
+                                        let eval_arg =
+                                            eval_inner(env.clone(), &arg1, context.quoting(false))?;
+                                        let tmp = [eval_arg];
+                                        let arg2 = require_typed_arg::<&List>(keyword, &tmp, 0)?;
+                                        let arg3 = arg2.into_iter().collect::<Vec<_>>();
+                                        Ok(arg3)
+                                    }
+                                    Ok(v) => Ok(vec![v.clone()]),
+                                    Err(e) => Err(e.clone()),
+                                },
+                                _ => Ok(vec![el]),
+                            }
+                        })
+                        .collect::<Result<Vec<_>, RuntimeError>>()
+                        .into_iter()
+                        .flat_map(|x| x.into_iter())
+                        .flat_map(|x| x.into_iter())
                         .map(|el| eval_inner(env.clone(), &el, context))
                         .collect::<Result<List, RuntimeError>>()
                         .map(Value::List);
